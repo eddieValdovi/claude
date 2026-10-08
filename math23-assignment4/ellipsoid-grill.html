@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Ellipsoid Grill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,600..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital@0;1&display=swap">
+<style>
+/* Layout: spec-sheet header, 3D viewport beside a control column, then geometry notes and a comparison table. */
+:root {
+  color-scheme: light;
+  --paper: #ffffff;
+  --ink: #18221d;
+  --muted: #5a675f;
+  --rule: #dde4df;
+  --wash: #f3f6f4;
+  --grill: #23874f;
+  --grill-soft: #e3f2e9;
+  --ember: #d9561a;
+  --ember-soft: #fdebe1;
+  --char: #6b4226;
+  --f-display: "Archivo", "Arial Narrow", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --f-math: "STIX Two Text", "Cambria Math", "Times New Roman", serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper); color: var(--ink);
+  font: 15px/1.5 var(--f-body);
+  padding-inline: 16px; padding-block: 20px 48px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 28px; }
+header { display: grid; gap: 4px; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+.eyebrow { font: 500 12px/1.2 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 800 clamp(32px, 6vw, 56px)/1 var(--f-display); font-stretch: 78%; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+h2 { font: 700 22px/1.15 var(--f-display); font-stretch: 85%; margin: 0; text-wrap: balance; }
+header p { margin: 4px 0 0; max-width: 68ch; color: var(--muted); }
+.m { font-family: var(--f-math); font-style: italic; font-size: 1.08em; }
+.mu { font-family: var(--f-math); font-size: 1.08em; }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.viewcol { display: grid; gap: 10px; min-width: 0; }
+.viewport { position: relative; height: 560px; border: 1px solid var(--rule); background: #fff; overflow: hidden; touch-action: none; }
+.viewport canvas.gl { display: block; width: 100%; height: 100%; }
+.tag { position: absolute; left: 0; top: 0; pointer-events: none; font: 500 12px/1.2 var(--f-mono); padding: 2px 6px; background: rgba(255,255,255,.85); border: 1px solid var(--rule); white-space: nowrap; transform: translate(10px, -50%); }
+.tag b { font-family: var(--f-math); font-style: italic; font-weight: 400; font-size: 14px; }
+.tag.coal { color: var(--ember); border-color: var(--ember); }
+.tag.food { color: var(--char); border-color: var(--char); }
+.hint { position: absolute; left: 10px; top: 10px; font: 12px/1.3 var(--f-mono); color: var(--muted); pointer-events: none; }
+.inset { position: absolute; right: 10px; bottom: 10px; width: 260px; background: rgba(255,255,255,.94); border: 1px solid var(--rule); padding: 8px 10px 6px; }
+.inset h3 { margin: 0 0 2px; font: 600 12px/1.2 var(--f-body); }
+.inset .sub { font: 11px/1.2 var(--f-mono); color: var(--muted); }
+.inset canvas { display: block; width: 100%; height: 130px; }
+.tip { position: absolute; pointer-events: none; font: 11px/1.3 var(--f-mono); background: var(--ink); color: #fff; padding: 3px 6px; white-space: nowrap; transform: translate(-50%, -120%); }
+
+.status { display: flex; gap: 10px; align-items: center; padding: 10px 12px; background: var(--wash); border-left: 4px solid var(--grill); font-size: 14px; min-height: 46px; }
+.status.cooking { border-left-color: var(--ember); background: var(--ember-soft); }
+.status .pill { font: 600 11px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .06em; padding: 4px 7px; background: var(--grill); color: #fff; flex: none; }
+.status.cooking .pill { background: var(--ember); }
+
+.panel { display: grid; gap: 16px; border: 1px solid var(--rule); padding: 16px; min-width: 0; }
+.ctrl { display: grid; gap: 4px; }
+.ctrl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctrl label { font-weight: 600; }
+.ctrl output { font: 500 15px var(--f-mono); font-variant-numeric: tabular-nums; }
+.ctrl small { color: var(--muted); font-size: 12px; }
+input[type=range] { width: 100%; accent-color: var(--grill); }
+.derived { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--rule); }
+.derived div { padding: 6px 8px; display: grid; gap: 1px; }
+.derived div + div { border-left: 1px solid var(--rule); }
+.derived span { font: 11px var(--f-mono); color: var(--muted); }
+.derived strong { font: 500 15px var(--f-mono); font-variant-numeric: tabular-nums; }
+button { font: inherit; cursor: pointer; }
+.cook { font: 700 20px/1 var(--f-display); font-stretch: 85%; letter-spacing: .04em; text-transform: uppercase; padding: 14px; background: var(--ember); color: #fff; border: 0; border-bottom: 4px solid #9c3b0f; }
+.cook:hover { background: #c44c14; }
+.cook:disabled { opacity: .6; cursor: progress; }
+.cook:focus-visible, button:focus-visible, input:focus-visible, tr:focus-visible { outline: 3px solid var(--grill); outline-offset: 2px; }
+.results { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.results div { background: #fff; padding: 8px 10px; display: grid; gap: 2px; }
+.results div.wide { grid-column: 1 / -1; }
+.results span { font-size: 12px; color: var(--muted); }
+.results strong { font: 500 22px/1.1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.results em { font-style: normal; font-size: 12px; color: var(--muted); }
+.pack { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: center; }
+.pack canvas { width: 120px; height: 120px; display: block; }
+.pack p { margin: 0; font-size: 13px; color: var(--muted); }
+details { border-top: 1px solid var(--rule); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; }
+.assume { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 10px; }
+.assume label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); }
+.assume input { font: 14px var(--f-mono); padding: 5px 6px; border: 1px solid var(--rule); width: 100%; }
+
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.note { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.note h3 { margin: 0; font: 600 13px/1.2 var(--f-mono); text-transform: uppercase; letter-spacing: .07em; color: var(--grill); }
+.eq { font-family: var(--f-math); font-size: 19px; line-height: 1.6; overflow-x: auto; }
+.eq .num { font-style: normal; }
+.note p { margin: 0; font-size: 14px; }
+.note ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+.sw { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; }
+
+.compare { display: grid; gap: 10px; }
+.compare .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+.compare .head p { margin: 0; color: var(--muted); font-size: 13px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--rule); }
+th { font: 600 11px var(--f-mono); letter-spacing: .03em; color: var(--muted); background: var(--wash); }
+td { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; font-family: var(--f-body); }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--grill-soft); }
+tr.mine td:first-child { color: var(--ember); font-weight: 600; }
+td.best { color: var(--grill); font-weight: 600; }
+.clear { background: none; border: 1px solid var(--rule); padding: 4px 10px; font-size: 13px; }
+footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 10px; }
+
+@media (max-width: 900px) {
+  .stage { grid-template-columns: minmax(0, 1fr); }
+  .viewport { height: 440px; }
+}
+@media (max-width: 560px) {
+  .viewport { height: 360px; }
+  .inset { position: static; width: auto; border: 1px solid var(--rule); }
+  .viewcol { gap: 8px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Math 23 · AI-Assignment 4 · Quadric surfaces</div>
+    <h1>The Ellipsoid Grill</h1>
+    <p>Coals sit at focus <span class="m">F</span><sub>1</sub>, the burger at focus <span class="m">F</span><sub>2</sub>. Every heat ray that leaves the coals bounces off the wall and lands on the food. Change <span class="m">a</span> and <span class="m">b</span>, press Cook, and compare cooking time, capacity, and cost.</p>
+  </header>
+
+  <section class="stage">
+    <div class="viewcol">
+      <div class="viewport" id="viewport">
+        <div class="hint">Drag to rotate · scroll or pinch to zoom</div>
+        <div class="tag coal" id="tagF1"><b>F</b>₁ coals</div>
+        <div class="tag food" id="tagF2"><b>F</b>₂ food</div>
+        <div class="inset" id="inset">
+          <h3>Burger core temperature</h3>
+          <div class="sub" id="insetSub">Target 130–135 °F (medium rare)</div>
+          <canvas id="tempChart" aria-label="Core temperature of the burger over cooking time"></canvas>
+        </div>
+      </div>
+      <div class="status" id="status" role="status" aria-live="polite"><span class="pill" id="statusPill">Ready</span><span id="statusText">Set a and b, then press Cook.</span></div>
+    </div>
+
+    <aside class="panel" aria-label="Grill controls">
+      <div class="ctrl">
+        <div class="row"><label for="aIn">Semi-axis <span class="m">a</span> (height)</label><output id="aOut">40.0 cm</output></div>
+        <input type="range" id="aIn" min="20" max="60" step="0.5" value="40">
+      </div>
+      <div class="ctrl">
+        <div class="row"><label for="bIn">Semi-axis <span class="m">b</span> (radius)</label><output id="bOut">30.0 cm</output></div>
+        <input type="range" id="bIn" min="10" max="55" step="0.5" value="30">
+        <small id="abNote">Kept below <span class="m">a</span> so the two foci exist.</small>
+      </div>
+      <div class="derived">
+        <div><span>c = √(a²−b²)</span><strong id="cOut">26.46</strong></div>
+        <div><span>e = c/a</span><strong id="eOut">0.661</strong></div>
+        <div><span>η = 0.4+0.5e</span><strong id="etaOut">0.731</strong></div>
+      </div>
+      <div class="ctrl">
+        <div class="row"><label for="qIn">Burgers to cook</label><output id="qOut">24</output></div>
+        <input type="range" id="qIn" min="1" max="24" step="1" value="24">
+        <small id="qNote">Full load</small>
+      </div>
+      <button class="cook" id="cookBtn" type="button">Cook</button>
+      <div class="results">
+        <div class="wide"><span>Cooking time to medium rare</span><strong id="tOut">—</strong><em id="tNote">Predicted for this load</em></div>
+        <div><span>Max burgers</span><strong id="nOut">—</strong></div>
+        <div><span>Grill cost</span><strong id="costOut">—</strong></div>
+        <div class="wide"><span>Shell surface area</span><strong id="sOut" style="font-size:17px">—</strong></div>
+      </div>
+      <div class="pack">
+        <canvas id="packCanvas" aria-label="Top view of the hexagonal burger packing on a disc of radius b"></canvas>
+        <p id="packText">Top view: 4-in (10.16 cm) patties in hexagonal packing on a disc of area <span class="m">πb</span>².</p>
+      </div>
+      <details>
+        <summary>Model assumptions</summary>
+        <div class="assume">
+          <label for="T0In">T₀, reference time (min)<input id="T0In" type="number" min="1" step="0.5" value="6"></label>
+          <label for="q0In">qty₀, reference load<input id="q0In" type="number" min="1" step="1" value="4"></label>
+          <label for="priceIn">Material price ($/m²)<input id="priceIn" type="number" min="0" step="5" value="85"></label>
+          <label for="hwIn">Fixed hardware ($)<input id="hwIn" type="number" min="0" step="5" value="40"></label>
+        </div>
+      </details>
+    </aside>
+  </section>
+
+  <section class="notes" aria-label="Geometry of this grill">
+    <div class="note">
+      <h3>Equation &amp; foci</h3>
+      <div class="eq" id="eqLive"></div>
+      <p id="fociLive"></p>
+    </div>
+    <div class="note">
+      <h3>Coordinate-plane traces</h3>
+      <ul id="traceLive"></ul>
+    </div>
+    <div class="note">
+      <h3>Model</h3>
+      <div class="eq" style="font-size:16px">S = 2πb²[1 + (a / (b·e))·arcsin e]<br>T = T₀·(qty / qty₀) / η<br>Cost ≈ S·price + hardware</div>
+      <p id="modelLive"></p>
+    </div>
+  </section>
+
+  <section class="compare">
+    <div class="head">
+      <h2>Design comparison</h2>
+      <p>Presets are examples. Each Cook adds your design. Click a row to load it. Green marks the best value in a column.</p>
+      <button class="clear" id="clearBtn" type="button">Clear my cooks</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Design</th><th>a (cm)</th><th>b (cm)</th><th>c (cm)</th><th>e</th><th>η</th><th>S (m²)</th><th>Max burgers</th><th>Burgers</th><th>Time (min)</th><th>min / burger</th><th>Cost ($)</th><th>$ / burger slot</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>Model only: medium rare is a 130–135 °F core. USDA advises 160 °F for ground beef. Heat-ray paths use the reflective property of the prolate spheroid: a ray from one focus reflects through the other.</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  "use strict";
+  const PATTY_D = 10.16;            // 4 in in cm
+  const T_INIT = 40, T_TARGET = 135, T_INF = 175; // °F
+  const $ = (id) => document.getElementById(id);
+  const css = getComputedStyle(document.documentElement);
+  const tok = (n) => css.getPropertyValue(n).trim();
+
+  // ---------- model ----------
+  function packing(R, d) {
+    const rr = R - d / 2, h = d * Math.sqrt(3) / 2;
+    let best = [];
+    if (rr < 0) return best;
+    const offs = [[0, 0], [d / 2, 0], [0, h / 2], [d / 2, h / 2], [d / 4, h / 4], [d / 4, 0], [0, h / 4]];
+    for (const [ox, oy] of offs) {
+      const pts = [];
+      const J = Math.ceil(rr / h) + 1, I = Math.ceil(rr / d) + 2;
+      for (let j = -J; j <= J; j++) for (let i = -I; i <= I; i++) {
+        const x = i * d + ((j & 1) ? d / 2 : 0) + ox, y = j * h + oy;
+        if (x * x + y * y <= rr * rr + 1e-9) pts.push([x, y]);
+      }
+      if (pts.length > best.length) best = pts;
+    }
+    return best;
+  }
+  function model(a, b, qty, P) {
+    const c = Math.sqrt(a * a - b * b), e = c / a, eta = 0.4 + 0.5 * e;
+    const Scm = 2 * Math.PI * b * b * (1 + (a / (b * e)) * Math.asin(e));
+    const S = Scm / 1e4;
+    const pts = packing(b, PATTY_D), N = pts.length;
+    const q = qty == null ? N : Math.min(qty, N);
+    const T = P.T0 * (q / P.q0) / eta;
+    const cost = S * P.price + P.hw;
+    return { a, b, c, e, eta, S, N, pts, q, T, cost };
+  }
+  function params() {
+    const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v > 0 ? v : d; };
+    return { T0: num("T0In", 6), q0: num("q0In", 4), price: Math.max(0, parseFloat($("priceIn").value) || 0), hw: Math.max(0, parseFloat($("hwIn").value) || 0) };
+  }
+  const fmtTime = (m) => { const s = Math.round(m * 60); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+
+  // ---------- state ----------
+  const st = { a: 40, b: 30, qtyAuto: true, qty: null, cooking: false, cooked: false, progress: 0, t0: 0, m: null, myRows: [] };
+
+  // ---------- three.js scene ----------
+  const vp = $("viewport");
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(0xffffff, 1);
+  renderer.domElement.className = "gl";
+  vp.insertBefore(renderer.domElement, vp.firstChild);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(36, 1, 1, 3000);
+  camera.position.set(140, 95, 170);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, -8, 0);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.minDistance = 60; controls.maxDistance = 600;
+  controls.update();
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a5a3a, 0.85));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.55); sun.position.set(120, 220, 90); scene.add(sun);
+  const emberLight = new THREE.PointLight(0xff7a2a, 0.6, 160, 2); scene.add(emberLight);
+
+  // brown plane
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(105, 64), new THREE.MeshLambertMaterial({ color: 0x7a4b2b }));
+  ground.rotation.x = -Math.PI / 2; scene.add(ground);
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 48), new THREE.MeshBasicMaterial({ color: 0x3d2414, transparent: true, opacity: 0.35, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
+
+  // transparent green bowl: lower half (z ≤ 0) of the ellipsoid; three.js y = model z
+  const bowlGeo = new THREE.SphereGeometry(1, 96, 48, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+  const bowl = new THREE.Group();
+  const backMat = new THREE.MeshPhongMaterial({ color: 0x2aa862, transparent: true, opacity: 0.22, side: THREE.BackSide, depthWrite: false, shininess: 40 });
+  const frontMat = new THREE.MeshPhongMaterial({ color: 0x2aa862, transparent: true, opacity: 0.24, side: THREE.FrontSide, depthWrite: false, shininess: 90, specular: 0x88ffbb });
+  const bBack = new THREE.Mesh(bowlGeo, backMat); bBack.renderOrder = 1;
+  const bFront = new THREE.Mesh(bowlGeo, frontMat); bFront.renderOrder = 3;
+  bowl.add(bBack, bFront); scene.add(bowl);
+
+  const dyn = new THREE.Group(); scene.add(dyn); // rebuilt on a/b change
+
+  // coals
+  const coals = new THREE.Group(); scene.add(coals);
+  const coalMat = new THREE.MeshStandardMaterial({ color: 0x2b2522, emissive: 0xff5a14, emissiveIntensity: 0.35, roughness: 0.9, flatShading: true });
+  const coalGeo = new THREE.DodecahedronGeometry(1.5, 0);
+  for (let i = 0; i < 13; i++) {
+    const m = new THREE.Mesh(coalGeo, coalMat);
+    const r = i === 0 ? 0 : (i < 7 ? 2.6 : 4.6), ang = i * 2.4;
+    m.position.set(r * Math.cos(ang), (i < 7 ? 0.6 : -0.4) + (i === 0 ? 1.2 : 0), r * Math.sin(ang));
+    m.rotation.set(i, i * 1.7, i * 0.3);
+    m.scale.setScalar(0.8 + ((i * 37) % 10) / 20);
+    coals.add(m);
+  }
+  const tray = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 5.5, 0.6, 32), new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.6, roughness: 0.5 }));
+  tray.position.y = -1.4; coals.add(tray);
+
+  // food: patty with a canvas top for grill marks
+  const food = new THREE.Group(); scene.add(food);
+  const topCanvas = document.createElement("canvas"); topCanvas.width = topCanvas.height = 256;
+  const topTex = new THREE.CanvasTexture(topCanvas);
+  const sideMat = new THREE.MeshStandardMaterial({ color: 0xc23a4a, roughness: 0.85 });
+  const topMat = new THREE.MeshStandardMaterial({ map: topTex, roughness: 0.8 });
+  const patty = new THREE.Mesh(new THREE.CylinderGeometry(PATTY_D / 2, PATTY_D / 2, 1.6, 48), [sideMat, topMat, sideMat]);
+  patty.position.y = 1.0; food.add(patty);
+  const grateMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.7, roughness: 0.4 });
+  for (let i = -3; i <= 3; i++) {
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 13, 8), grateMat);
+    bar.rotation.z = Math.PI / 2; bar.position.set(0, 0, i * 1.9); food.add(bar);
+  }
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(6.6, 0.22, 8, 48), grateMat); ring.rotation.x = Math.PI / 2; food.add(ring);
+
+  const lerp = (x, y, t) => x + (y - x) * t;
+  function mix(c1, c2, t) { const a = new THREE.Color(c1), b = new THREE.Color(c2); return a.lerp(b, t); }
+  function drawPatty(p) {
+    const g = topCanvas.getContext("2d"), s = 256;
+    const base = mix(0xc8404f, 0x744226, Math.min(1, p * 1.1));
+    g.fillStyle = "#" + base.getHexString(); g.fillRect(0, 0, s, s);
+    // fat speckle
+    for (let i = 0; i < 160; i++) {
+      const x = (i * 97) % s, y = (i * 61 + (i * i) % 53) % s;
+      g.fillStyle = p < 0.5 ? "rgba(255,210,210," + (0.35 * (1 - p * 2)) + ")" : "rgba(60,30,15,0.25)";
+      g.fillRect(x, y, 3, 3);
+    }
+    if (p > 0.25) {
+      const k = (p - 0.25) / 0.75;
+      g.save(); g.translate(s / 2, s / 2); g.rotate(-Math.PI / 4);
+      g.fillStyle = "rgba(28,14,6," + (0.85 * k) + ")";
+      for (let i = -3; i <= 3; i++) g.fillRect(-s, i * 36 - 6, 2 * s, 12);
+      g.restore();
+    }
+    topTex.needsUpdate = true;
+    sideMat.color.copy(mix(0xc23a4a, 0x5e351e, p));
+  }
+
+  // rays
+  const rayMat = new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.85 });
+  const photonMat = new THREE.MeshBasicMaterial({ color: 0xffd23a });
+  const photonGeo = new THREE.SphereGeometry(0.9, 10, 8);
+  const RAY_PTS = [[180, 0], [158, 20], [140, 200], [124, 75], [112, 250], [150, 120], [132, 310], [118, 160]];
+  let paths = [];
+  const photons = [];
+  for (let i = 0; i < RAY_PTS.length * 3; i++) { const m = new THREE.Mesh(photonGeo, photonMat); m.visible = false; scene.add(m); photons.push(m); }
+
+  function seg(p, q, r, mat) {
+    const v = new THREE.Vector3().subVectors(q, p), L = v.length();
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, 6, 1, true), mat);
+    m.position.copy(p).addScaledVector(v, 0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v.normalize());
+    return m;
+  }
+  function line(points, color, dashed) {
+    const g = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = dashed ? new THREE.LineDashedMaterial({ color, dashSize: 2.2, gapSize: 1.8, transparent: true, opacity: 0.7 }) : new THREE.LineBasicMaterial({ color });
+    const l = new THREE.Line(g, mat); if (dashed) l.computeLineDistances(); return l;
+  }
+  function disposeGroup(g) {
+    while (g.children.length) { const c = g.children.pop(); c.geometry && c.geometry.dispose(); if (c.material && c.material !== rayMat) c.material.dispose(); }
+  }
+
+  const TRACE_XY = 0x1f6fb2, TRACE_XZ = 0x8a3fb0, TRACE_YZ = 0x23874f;
+  function rebuild() {
+    const { a, b } = st, c = Math.sqrt(a * a - b * b);
+    bowl.scale.set(b, a, b);
+    ground.position.y = -a - 0.05; shadow.position.y = -a; shadow.scale.setScalar(b * 0.75);
+    coals.position.set(0, -c, 0);
+    emberLight.position.set(0, -c + 3, 0);
+    food.position.set(0, c, 0);
+    disposeGroup(dyn);
+    // z axis
+    dyn.add(line([new THREE.Vector3(0, -a - 6, 0), new THREE.Vector3(0, a + 8, 0)], 0x9aa59f, true));
+    // trace z=0 (xy-plane): circle radius b — the rim
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(b, 0.45, 8, 96), new THREE.MeshStandardMaterial({ color: TRACE_XY, metalness: 0.3, roughness: 0.5 }));
+    rim.rotation.x = Math.PI / 2; dyn.add(rim);
+    // traces y=0 (xz) and x=0 (zy): ellipses; lower half solid, removed upper half dashed
+    for (const [col, ax] of [[TRACE_XZ, "x"], [TRACE_YZ, "z"]]) {
+      const lo = [], hi = [];
+      for (let i = 0; i <= 160; i++) {
+        const t = (i / 160) * Math.PI * 2, u = b * Math.sin(t), v = a * Math.cos(t);
+        const p = ax === "x" ? new THREE.Vector3(u, v, 0) : new THREE.Vector3(0, v, u);
+        (v <= 0.001 ? lo : hi).push(p);
+      }
+      // reorder lower arc so it is continuous
+      lo.sort((p, q) => Math.atan2(ax === "x" ? p.x : p.z, -p.y) - Math.atan2(ax === "x" ? q.x : q.z, -q.y));
+      hi.sort((p, q) => Math.atan2(ax === "x" ? p.x : p.z, p.y) - Math.atan2(ax === "x" ? q.x : q.z, q.y));
+      dyn.add(line(lo, col, false));
+      dyn.add(line(hi, col, true));
+    }
+    // heat rays F1 -> wall -> F2
+    const F1 = new THREE.Vector3(0, -c, 0), F2 = new THREE.Vector3(0, c, 0);
+    paths = RAY_PTS.map(([al, ps]) => {
+      const A = al * Math.PI / 180, P = ps * Math.PI / 180;
+      const W = new THREE.Vector3(b * Math.sin(A) * Math.cos(P), a * Math.cos(A), b * Math.sin(A) * Math.sin(P));
+      dyn.add(seg(F1, W, 0.28, rayMat)); dyn.add(seg(W, F2, 0.28, rayMat));
+      const hit = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff7a1a })); hit.position.copy(W); dyn.add(hit);
+      const L1 = F1.distanceTo(W), L2 = W.distanceTo(F2);
+      return { F1, W, F2, L1, L2 };
+    });
+  }
+
+  function resize() {
+    const w = vp.clientWidth, h = vp.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    drawChart();
+  }
+
+  const tagF1 = $("tagF1"), tagF2 = $("tagF2"), v3 = new THREE.Vector3();
+  function placeTag(el, pos) {
+    v3.copy(pos).project(camera);
+    const x = (v3.x * 0.5 + 0.5) * vp.clientWidth, y = (-v3.y * 0.5 + 0.5) * vp.clientHeight;
+    el.style.left = (x + 8) + "px"; el.style.top = y + "px";
+    el.style.visibility = v3.z < 1 ? "visible" : "hidden";
+  }
+
+  // ---------- temperature inset ----------
+  const chart = $("tempChart"), tip = document.createElement("div");
+  tip.className = "tip"; tip.hidden = true; $("inset").appendChild(tip);
+  let chartHover = null;
+  function coreTemp(t, T) { const k = Math.log((T_INF - T_INIT) / (T_INF - T_TARGET)) / T; return T_INF - (T_INF - T_INIT) * Math.exp(-k * t); }
+  function chartGeom() {
+    const w = chart.clientWidth, h = chart.clientHeight;
+    return { w, h, L: 30, R: 8, Tp: 8, B: 20, ymin: 40, ymax: 180 };
+  }
+  function drawChart() {
+    const m = st.m; if (!m) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), G = chartGeom();
+    if (!G.w) return;
+    chart.width = G.w * dpr; chart.height = G.h * dpr;
+    const g = chart.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, G.w, G.h);
+    const T = m.T, pw = G.w - G.L - G.R, ph = G.h - G.Tp - G.B;
+    const X = (t) => G.L + (t / T) * pw, Y = (v) => G.Tp + (1 - (v - G.ymin) / (G.ymax - G.ymin)) * ph;
+    g.font = "10px " + tok("--f-mono"); g.textBaseline = "middle";
+    // grid + y labels
+    for (const v of [40, 80, 120, 160]) {
+      g.strokeStyle = tok("--rule"); g.lineWidth = 1; g.beginPath(); g.moveTo(G.L, Y(v)); g.lineTo(G.L + pw, Y(v)); g.stroke();
+      g.fillStyle = tok("--muted"); g.textAlign = "right"; g.fillText(v + "°", G.L - 4, Y(v));
+    }
+    // target band
+    g.fillStyle = "rgba(35,135,79,0.16)"; g.fillRect(G.L, Y(135), pw, Y(130) - Y(135));
+    g.fillStyle = tok("--grill"); g.textAlign = "left"; g.fillText("medium rare", G.L + 4, Y(146));
+    // x labels
+    g.fillStyle = tok("--muted"); g.textBaseline = "top";
+    g.textAlign = "left"; g.fillText("0", G.L, G.Tp + ph + 5);
+    g.textAlign = "center"; g.fillText(fmtTime(T / 2), X(T / 2), G.Tp + ph + 5);
+    g.textAlign = "right"; g.fillText(fmtTime(T) + " min", G.L + pw, G.Tp + ph + 5);
+    // predicted curve (dashed) and cooked portion (solid)
+    const curve = (t1, dash, color) => {
+      g.setLineDash(dash); g.strokeStyle = color; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+      const n = 80; for (let i = 0; i <= n; i++) { const t = (i / n) * t1; const x = X(t), y = Y(coreTemp(t, T)); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+      g.stroke(); g.setLineDash([]);
+    };
+    curve(T, [4, 4], tok("--muted"));
+    const p = st.cooking ? st.progress : (st.cooked ? 1 : 0);
+    if (p > 0) {
+      curve(T * p, [], tok("--ember"));
+      const x = X(T * p), y = Y(coreTemp(T * p, T));
+      g.fillStyle = tok("--ember"); g.strokeStyle = "#fff"; g.lineWidth = 2;
+      g.beginPath(); g.arc(x, y, 4.5, 0, Math.PI * 2); g.fill(); g.stroke();
+    }
+    if (chartHover != null) {
+      const t = Math.max(0, Math.min(T, ((chartHover - G.L) / pw) * T));
+      const x = X(t), y = Y(coreTemp(t, T));
+      g.strokeStyle = tok("--ink"); g.globalAlpha = 0.35; g.lineWidth = 1; g.beginPath(); g.moveTo(x, G.Tp); g.lineTo(x, G.Tp + ph); g.stroke(); g.globalAlpha = 1;
+      g.fillStyle = tok("--ink"); g.beginPath(); g.arc(x, y, 3.5, 0, Math.PI * 2); g.fill();
+      tip.hidden = false; tip.textContent = fmtTime(t) + " min · " + coreTemp(t, T).toFixed(0) + " °F";
+      tip.style.left = (chart.offsetLeft + x) + "px"; tip.style.top = (chart.offsetTop + y) + "px";
+    } else tip.hidden = true;
+  }
+  chart.addEventListener("pointermove", (e) => { const r = chart.getBoundingClientRect(); chartHover = e.clientX - r.left; drawChart(); });
+  chart.addEventListener("pointerleave", () => { chartHover = null; drawChart(); });
+
+  // ---------- packing view ----------
+  function drawPacking() {
+    const cv = $("packCanvas"), dpr = Math.min(window.devicePixelRatio || 1, 2), s = 120;
+    cv.width = s * dpr; cv.height = s * dpr;
+    const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, s, s);
+    const { b, pts } = st.m, k = (s / 2 - 3) / b;
+    g.fillStyle = tok("--grill-soft"); g.strokeStyle = tok("--grill"); g.lineWidth = 1.5;
+    g.beginPath(); g.arc(s / 2, s / 2, b * k, 0, Math.PI * 2); g.fill(); g.stroke();
+    for (const [x, y] of pts) {
+      g.fillStyle = st.cooked ? "#744226" : "#c8404f";
+      g.beginPath(); g.arc(s / 2 + x * k, s / 2 + y * k, (PATTY_D / 2) * k - 0.6, 0, Math.PI * 2); g.fill();
+    }
+  }
+
+  // ---------- UI ----------
+  const fx = (v, d) => v.toFixed(d);
+  function update(fromCook) {
+    const P = params();
+    st.m = model(st.a, st.b, st.qtyAuto ? null : st.qty, P);
+    const m = st.m;
+    $("aOut").textContent = fx(st.a, 1) + " cm"; $("bOut").textContent = fx(st.b, 1) + " cm";
+    $("cOut").textContent = fx(m.c, 2); $("eOut").textContent = fx(m.e, 3); $("etaOut").textContent = fx(m.eta, 3);
+    const q = $("qIn"); q.max = Math.max(1, m.N); q.value = m.q; $("qOut").textContent = m.q;
+    $("qNote").textContent = m.q === m.N ? "Full load (" + m.N + " max)" : m.q + " of " + m.N + " slots";
+    $("tOut").textContent = fx(m.T, 1) + " min";
+    $("tNote").textContent = (st.cooked ? "Cooked: " : "Predicted: ") + m.q + " burger" + (m.q === 1 ? "" : "s") + " to a " + T_TARGET + " °F core";
+    $("nOut").textContent = m.N; $("costOut").textContent = "$" + fx(m.cost, 0);
+    $("sOut").textContent = fx(m.S, 3) + " m² (" + Math.round(m.S * 1e4).toLocaleString() + " cm²)";
+    $("insetSub").textContent = "Target 130–135 °F · " + fx(m.T, 1) + " min for " + m.q;
+
+    const a2 = Math.round(st.a * st.a * 100) / 100, b2 = Math.round(st.b * st.b * 100) / 100;
+    $("eqLive").innerHTML = "z²/a² + (x² + y²)/b² = 1<br><span class='num'>z²/" + a2 + " + (x² + y²)/" + b2 + " = 1</span>";
+    $("fociLive").innerHTML = "<span class='m'>c</span> = √(" + a2 + " − " + b2 + ") = " + fx(m.c, 2) + " cm. Coals at <span class='m'>F</span>₁(0, 0, −" + fx(m.c, 2) + "), food at <span class='m'>F</span>₂(0, 0, +" + fx(m.c, 2) + "). Focal distance 2<span class='m'>c</span> = " + fx(2 * m.c, 2) + " cm.";
+    const hex = (n) => "#" + n.toString(16).padStart(6, "0");
+    $("traceLive").innerHTML =
+      "<li><span class='sw' style='background:" + hex(TRACE_XY) + "'></span><b>z = 0</b> (xy-plane): x² + y² = " + b2 + ", a circle of radius " + fx(st.b, 1) + " cm. This is the rim.</li>" +
+      "<li><span class='sw' style='background:" + hex(TRACE_YZ) + "'></span><b>x = 0</b> (zy-plane): y²/" + b2 + " + z²/" + a2 + " = 1, an ellipse " + fx(2 * st.b, 1) + " cm wide and " + fx(2 * st.a, 1) + " cm tall.</li>" +
+      "<li><span class='sw' style='background:" + hex(TRACE_XZ) + "'></span><b>y = 0</b> (xz-plane): x²/" + b2 + " + z²/" + a2 + " = 1, the same ellipse turned 90°.</li>" +
+      "<li>Cross-section through a focus (z = ±c) is a circle of radius b²/a = " + fx(st.b * st.b / st.a, 2) + " cm. Dashed arcs show the cut-away top half.</li>";
+    $("modelLive").textContent = "S = " + fx(m.S, 3) + " m², η = " + fx(m.eta, 3) + ", T = " + P.T0 + "·(" + m.q + "/" + P.q0 + ")/" + fx(m.eta, 3) + " = " + fx(m.T, 1) + " min, cost = " + fx(m.S, 3) + "·$" + P.price + " + $" + P.hw + " = $" + fx(m.cost, 2) + ".";
+
+    if (!fromCook) { st.cooked = false; drawPatty(0); }
+    drawPacking(); drawChart(); renderTable();
+  }
+
+  function setStatus(kind, pill, text) {
+    const s = $("status"); s.classList.toggle("cooking", kind === "cooking");
+    $("statusPill").textContent = pill; $("statusText").textContent = text;
+  }
+
+  function onA() {
+    st.a = parseFloat($("aIn").value);
+    if (st.b > st.a - 1) { st.b = Math.max(10, st.a - 1); $("bIn").value = st.b; }
+    rebuild(); update(); setStatus("", "Ready", "a = " + fx(st.a, 1) + " cm, b = " + fx(st.b, 1) + " cm. Press Cook.");
+  }
+  function onB() {
+    let b = parseFloat($("bIn").value);
+    if (b > st.a - 1) { b = st.a - 1; $("bIn").value = b; $("abNote").innerHTML = "Stopped at b = a − 1. For b ≥ a the foci leave the z-axis."; }
+    else $("abNote").innerHTML = "Kept below <span class='m'>a</span> so the two foci exist.";
+    st.b = b; rebuild(); update(); setStatus("", "Ready", "a = " + fx(st.a, 1) + " cm, b = " + fx(st.b, 1) + " cm. Press Cook.");
+  }
+  $("aIn").addEventListener("input", onA);
+  $("bIn").addEventListener("input", onB);
+  $("qIn").addEventListener("input", () => {
+    const v = parseInt($("qIn").value, 10);
+    st.qtyAuto = v >= (st.m ? st.m.N : v); st.qty = v; update();
+  });
+  for (const id of ["T0In", "q0In", "priceIn", "hwIn"]) $(id).addEventListener("input", () => update());
+
+  // ---------- sound ----------
+  let actx = null;
+  function ensureAudio() {
+    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") actx.resume(); } catch (e) { actx = null; }
+  }
+  function sizzle() {
+    if (!actx) return;
+    try {
+      const sr = actx.sampleRate, n = Math.floor(sr * 1.0);
+      const buf = actx.createBuffer(1, n, sr), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) { const t = i / sr; d[i] = (Math.random() * 2 - 1) * 0.22 * Math.min(1, t / 0.03) * Math.pow(1 - t, 1.3); }
+      for (let k = 0; k < 80; k++) {
+        const s = Math.floor(Math.random() * n * 0.9), len = 120 + Math.floor(Math.random() * 520), A = 0.25 + Math.random() * 0.6;
+        for (let j = 0; j < len && s + j < n; j++) d[s + j] += (Math.random() * 2 - 1) * A * Math.exp(-j / (len / 4)) * (1 - (s + j) / n);
+      }
+      const src = actx.createBufferSource(); src.buffer = buf;
+      const hp = actx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 1600;
+      const pk = actx.createBiquadFilter(); pk.type = "peaking"; pk.frequency.value = 5200; pk.Q.value = 0.8; pk.gain.value = 6;
+      const g = actx.createGain(); g.gain.value = 0.55;
+      src.connect(hp); hp.connect(pk); pk.connect(g); g.connect(actx.destination); src.start();
+    } catch (e) { /* audio is optional */ }
+  }
+
+  // ---------- cook ----------
+  $("cookBtn").addEventListener("click", () => {
+    if (st.cooking) return;
+    ensureAudio();
+    st.cooking = true; st.cooked = false; st.progress = 0; st.t0 = performance.now();
+    $("cookBtn").disabled = true; drawPatty(0);
+    photons.forEach((p) => (p.visible = true));
+  });
+  function finishCook() {
+    st.cooking = false; st.cooked = true; st.progress = 1;
+    photons.forEach((p) => (p.visible = false));
+    $("cookBtn").disabled = false; drawPatty(1); sizzle();
+    const m = st.m;
+    setStatus("", "Done", "Cooking time " + fx(m.T, 1) + " min for " + m.q + " medium-rare burger" + (m.q === 1 ? "" : "s") + ". Maximum on this grill: " + m.N + ". Cost about $" + fx(m.cost, 0) + ".");
+    st.myRows.push({ label: "My cook " + (st.myRows.length + 1), a: st.a, b: st.b, qty: st.qtyAuto ? null : st.qty });
+    update(true);
+  }
+
+  // ---------- comparison table ----------
+  const PRESETS = [
+    { label: "Preset · tall", a: 50, b: 30 },
+    { label: "Preset · default", a: 40, b: 30 },
+    { label: "Preset · round-ish", a: 36, b: 33 },
+    { label: "Preset · slim", a: 50, b: 20 },
+    { label: "Preset · large", a: 60, b: 45 },
+  ];
+  function renderTable() {
+    const P = params();
+    const rows = PRESETS.map((r) => ({ ...r, mine: false })).concat(st.myRows.map((r) => ({ ...r, mine: true })));
+    const data = rows.map((r) => ({ r, m: model(r.a, r.b, r.qty == null ? null : r.qty, P) }));
+    const best = {
+      N: Math.max(...data.map((d) => d.m.N)),
+      tpb: Math.min(...data.map((d) => d.m.T / d.m.q)),
+      cost: Math.min(...data.map((d) => d.m.cost)),
+      cps: Math.min(...data.map((d) => d.m.cost / d.m.N)),
+    };
+    const near = (x, y) => Math.abs(x - y) < 1e-9;
+    $("tbody").innerHTML = data.map(({ r, m }, i) =>
+      "<tr tabindex='0' data-i='" + i + "' class='" + (r.mine ? "mine" : "") + "'>" +
+      "<td>" + r.label + "</td><td>" + fx(m.a, 1) + "</td><td>" + fx(m.b, 1) + "</td><td>" + fx(m.c, 2) + "</td><td>" + fx(m.e, 3) + "</td><td>" + fx(m.eta, 3) + "</td><td>" + fx(m.S, 3) + "</td>" +
+      "<td class='" + (near(m.N, best.N) ? "best" : "") + "'>" + m.N + "</td><td>" + m.q + "</td><td>" + fx(m.T, 1) + "</td>" +
+      "<td class='" + (near(m.T / m.q, best.tpb) ? "best" : "") + "'>" + fx(m.T / m.q, 2) + "</td>" +
+      "<td class='" + (near(m.cost, best.cost) ? "best" : "") + "'>" + fx(m.cost, 0) + "</td>" +
+      "<td class='" + (near(m.cost / m.N, best.cps) ? "best" : "") + "'>" + fx(m.cost / m.N, 2) + "</td></tr>").join("");
+    $("tbody").querySelectorAll("tr").forEach((tr) => {
+      const load = () => {
+        const { r } = data[+tr.dataset.i];
+        st.a = r.a; st.b = r.b; st.qtyAuto = r.qty == null; st.qty = r.qty;
+        $("aIn").value = r.a; $("bIn").value = r.b; rebuild(); update();
+        setStatus("", "Loaded", r.label + ": a = " + fx(r.a, 1) + " cm, b = " + fx(r.b, 1) + " cm. Press Cook.");
+      };
+      tr.addEventListener("click", load);
+      tr.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); load(); } });
+    });
+  }
+  $("clearBtn").addEventListener("click", () => { st.myRows = []; renderTable(); });
+
+  // ---------- loop ----------
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function frame(now) {
+    if (st.cooking) {
+      st.progress = Math.min(1, (now - st.t0) / 1000);
+      const p = st.progress, m = st.m;
+      drawPatty(p);
+      coalMat.emissiveIntensity = 0.35 + 0.9 * Math.sin(Math.PI * p);
+      emberLight.intensity = 0.6 + 1.6 * Math.sin(Math.PI * p);
+      paths.forEach((path, i) => {
+        for (let k = 0; k < 3; k++) {
+          const ph = photons[i * 3 + k];
+          let s = ((p * 2.2) + k / 3 + i * 0.07) % 1;
+          if (reduce) s = (k + 0.5) / 3;
+          const d = s * (path.L1 + path.L2);
+          if (d < path.L1) ph.position.copy(path.F1).lerp(path.W, d / path.L1);
+          else ph.position.copy(path.W).lerp(path.F2, (d - path.L1) / path.L2);
+        }
+      });
+      setStatus("cooking", "Cooking", "Simulated " + fmtTime(m.T * p) + " of " + fmtTime(m.T) + " min · core " + coreTemp(m.T * p, m.T).toFixed(0) + " °F");
+      drawChart();
+      if (p >= 1) finishCook();
+    } else {
+      coalMat.emissiveIntensity = 0.35; emberLight.intensity = 0.6;
+    }
+    controls.update();
+    renderer.render(scene, camera);
+    const c = st.m ? st.m.c : 0;
+    placeTag(tagF1, new THREE.Vector3(0, -c, 0)); placeTag(tagF2, new THREE.Vector3(0, c + 1, 0));
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener("resize", resize);
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(vp);
+  rebuild(); update(); resize();
+  requestAnimationFrame(frame);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { drawChart(); });
+})();
+</script>
+</body>
+</html>

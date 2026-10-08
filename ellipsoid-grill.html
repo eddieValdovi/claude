@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Ellipsoid Grill</title>
+<style>
+  :root { --bg:#fff; --fg:#222; --muted:#666; --panel:#f6f6f6; --accent:#2e7d32; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  #wrap { display:flex; flex-wrap:wrap; min-height:100vh; }
+  #view { flex:1 1 600px; position:relative; min-height:420px; }
+  #view canvas { display:block; width:100%; height:100%; cursor:grab; }
+  #side { flex:0 1 340px; padding:16px; background:var(--panel); }
+  h1 { font-size:1.3rem; margin:0 0 12px; }
+  label { display:block; margin-top:12px; font-size:.9rem; }
+  input[type=range] { width:100%; }
+  button { margin-top:16px; width:100%; padding:10px; font-size:1rem; background:var(--accent); color:#fff; border:0; border-radius:6px; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  #status { margin-top:14px; padding:10px; background:#fff; border-left:4px solid var(--accent); font-size:.9rem; min-height:3em; }
+  table { width:100%; margin-top:12px; font-size:.85rem; border-collapse:collapse; }
+  td { padding:3px 0; } td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+  #inset { position:absolute; right:12px; bottom:12px; background:rgba(255,255,255,.92); border:1px solid #ccc; border-radius:6px; }
+  #food { position:absolute; left:12px; bottom:12px; background:rgba(255,255,255,.92); border:1px solid #ccc; border-radius:6px; }
+  .cap { font-size:.75rem; color:var(--muted); text-align:center; padding:2px; }
+  .hint { position:absolute; left:12px; top:10px; font-size:.8rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="view">
+    <div class="hint">Drag to rotate · scroll to zoom</div>
+    <div id="food"><canvas id="foodCv" width="160" height="120"></canvas><div class="cap">Burger at food focus</div></div>
+    <div id="inset"><canvas id="tempCv" width="240" height="150"></canvas><div class="cap">Core temperature profile</div></div>
+  </div>
+  <div id="side">
+    <h1>The Ellipsoid Grill</h1>
+    <div style="font-size:.85rem;color:var(--muted)">z²/a² + (x²+y²)/b² = 1, coals at (0,0,−c), food at (0,0,+c), c = √(a²−b²)</div>
+    <label>a (semi-major, cm): <b id="aV"></b><input id="a" type="range" min="15" max="80" step="1" value="40"></label>
+    <label>b (semi-minor, cm): <b id="bV"></b><input id="b" type="range" min="10" max="79" step="1" value="25"></label>
+    <button id="cook">Cook</button>
+    <div id="status">Adjust a and b, then press Cook.</div>
+    <table>
+      <tr><td>Focal distance c</td><td id="cV"></td></tr>
+      <tr><td>Eccentricity e</td><td id="eV"></td></tr>
+      <tr><td>Focusing efficiency η</td><td id="etaV"></td></tr>
+      <tr><td>Shell area S</td><td id="sV"></td></tr>
+      <tr><td>Max hamburgers</td><td id="qV"></td></tr>
+      <tr><td>Cooking time (medium rare)</td><td id="tV"></td></tr>
+      <tr><td><b>Cost of grill</b></td><td id="costV"></td></tr>
+    </table>
+    <p style="font-size:.75rem;color:var(--muted)">Model: S = 2πb²[1 + (a/(b·e))·arcsin e]; η = 0.4 + 0.5e;
+      T = T₀·(qty/qty₀)/η with T₀ = 4 min, qty₀ = 1; qty = ⌊0.9069·πb² / π(5.08 cm)²⌋ (hex packing of 4″ patties);
+      Cost = S·$60/m² + $35 hardware.</p>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const T0 = 4, QTY0 = 1, PRICE = 60, HW = 35, PATTY_R = 5.08;
+let a = 40, b = 25, model = {};
+
+function compute() {
+  const c = Math.sqrt(a*a - b*b), e = c / a;
+  const S = 2*Math.PI*b*b*(1 + (a/(b*e))*Math.asin(e)); // cm²
+  const eta = 0.4 + 0.5*e;
+  const qty = Math.max(1, Math.floor(0.9069 * b*b / (PATTY_R*PATTY_R)));
+  const T = T0 * (qty/QTY0) / eta;
+  const cost = (S/1e4)*PRICE + HW;
+  model = { c, e, S, eta, qty, T, cost };
+  $('aV').textContent = a; $('bV').textContent = b;
+  $('cV').textContent = c.toFixed(1)+' cm';
+  $('eV').textContent = e.toFixed(3);
+  $('etaV').textContent = eta.toFixed(3);
+  $('sV').textContent = (S/1e4).toFixed(3)+' m²';
+  $('qV').textContent = qty;
+  $('tV').textContent = T.toFixed(1)+' min';
+  $('costV').textContent = '$'+cost.toFixed(2);
+}
+
+// ---- three.js scene ----
+const view = $('view');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(devicePixelRatio);
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xffffff);
+const camera = new THREE.PerspectiveCamera(45, 1, 1, 2000);
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dl = new THREE.DirectionalLight(0xffffff, 0.7); dl.position.set(100,200,150); scene.add(dl);
+const world = new THREE.Group(); scene.add(world); // world: z (ellipsoid axis) mapped to three's y
+let grillGroup = new THREE.Group(); world.add(grillGroup);
+let foodMesh, rays = [];
+
+function build() {
+  world.remove(grillGroup); grillGroup = new THREE.Group(); world.add(grillGroup);
+  const { c } = model;
+  // lower half of ellipsoid (top cut away): parametric, axis along y
+  const geo = new THREE.SphereGeometry(1, 64, 32, 0, Math.PI*2, Math.PI/2, Math.PI/2);
+  geo.scale(b, a, b);
+  const shell = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color:0x2ecc71, transparent:true, opacity:0.35, side:THREE.DoubleSide, depthWrite:false }));
+  grillGroup.add(shell);
+  grillGroup.add(new THREE.LineSegments(new THREE.WireframeGeometry(geo), new THREE.LineBasicMaterial({ color:0x1b7a3f, transparent:true, opacity:0.25 })));
+  // rim
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(b, 0.6, 8, 64), new THREE.MeshPhongMaterial({ color:0x1b7a3f }));
+  rim.rotation.x = Math.PI/2; grillGroup.add(rim);
+  // ground plane
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(b*5, b*5), new THREE.MeshPhongMaterial({ color:0x8b5a2b, side:THREE.DoubleSide }));
+  ground.rotation.x = -Math.PI/2; ground.position.y = -a; grillGroup.add(ground);
+  // coals at -c
+  for (let i = 0; i < 9; i++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 8), new THREE.MeshPhongMaterial({ color:0x222222, emissive:0xff3300, emissiveIntensity:0.6 }));
+    const ang = i*0.7, r = i ? 2.5 : 0;
+    m.position.set(r*Math.cos(ang), -c + (i%2)*1.2, r*Math.sin(ang)); grillGroup.add(m);
+  }
+  // food at +c (above the cut; held on grate)
+  foodMesh = new THREE.Mesh(new THREE.CylinderGeometry(PATTY_R, PATTY_R, 2, 32), new THREE.MeshPhongMaterial({ color:0xd2352f }));
+  foodMesh.position.y = c; grillGroup.add(foodMesh);
+  const grate = new THREE.Mesh(new THREE.RingGeometry(0, PATTY_R*1.4, 32), new THREE.MeshBasicMaterial({ color:0x555555, wireframe:true }));
+  grate.rotation.x = -Math.PI/2; grate.position.y = c-1.1; grillGroup.add(grate);
+  // heat rays: focus -> wall -> focus (reflection property)
+  rays = [];
+  for (let k = 0; k < 10; k++) {
+    const t = Math.PI*(0.15 + 0.7*k/9) + Math.PI*0; // angle param on the lower half
+    const phi = k*Math.PI*2/10;
+    // point on wall: param theta in (pi/2, pi) for lower half: y = a cos θ, r = b sin θ
+    const th = Math.PI/2 + 0.15 + (Math.PI/2 - 0.3)*((k*0.37)%1);
+    const P = new THREE.Vector3(b*Math.sin(th)*Math.cos(phi), a*Math.cos(th), b*Math.sin(th)*Math.sin(phi));
+    const pts = [new THREE.Vector3(0,-c,0), P, new THREE.Vector3(0,c,0)];
+    const g = new THREE.BufferGeometry().setFromPoints(pts);
+    const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color:0xff8800, transparent:true, opacity:0.8 }));
+    grillGroup.add(line); rays.push(line);
+  }
+  const R = Math.max(a, b) * 3.2;
+  camDist = R; updateCam();
+}
+
+let rotX = 0.35, rotY = 0.6, camDist = 150;
+function updateCam() {
+  camera.position.set(camDist*Math.cos(rotX)*Math.sin(rotY), camDist*Math.sin(rotX), camDist*Math.cos(rotX)*Math.cos(rotY));
+  camera.lookAt(0, -a*0.2, 0);
+}
+let drag = null;
+renderer.domElement.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; renderer.domElement.setPointerCapture(e.pointerId); });
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!drag) return;
+  rotY -= (e.clientX-drag[0])*0.01; rotX = Math.max(-1.4, Math.min(1.4, rotX + (e.clientY-drag[1])*0.01));
+  drag = [e.clientX, e.clientY]; updateCam();
+});
+renderer.domElement.addEventListener('pointerup', () => drag = null);
+renderer.domElement.addEventListener('wheel', e => { e.preventDefault(); camDist *= e.deltaY > 0 ? 1.1 : 0.9; updateCam(); }, { passive:false });
+
+function resize() {
+  const w = view.clientWidth, h = Math.max(420, view.clientHeight || innerHeight);
+  renderer.setSize(w, h); camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+// ---- cooking ----
+let cookStart = null, progress = 0; const SIM_MS = 1000;
+const raw = new THREE.Color(0xd2352f), done = new THREE.Color(0x6b3e1f);
+function drawFood(p) {
+  const cv = $('foodCv'), x = cv.getContext('2d');
+  x.clearRect(0,0,160,120);
+  const col = raw.clone().lerp(done, p);
+  x.fillStyle = '#' + col.getHexString();
+  x.beginPath(); x.ellipse(80, 60, 60, 38, 0, 0, Math.PI*2); x.fill();
+  if (p > 0.5) {
+    x.strokeStyle = `rgba(30,15,5,${(p-0.5)*2})`; x.lineWidth = 4;
+    for (let i = -2; i <= 2; i++) { x.beginPath(); x.moveTo(50+i*15, 30); x.lineTo(80+i*15, 90); x.stroke(); }
+  }
+}
+function coreTemp(tMin, T) { // exponential approach to 57 °C (medium rare) at t = T
+  const Tinf = 90, T0c = 5, k = -Math.log((Tinf-57)/(Tinf-T0c)) / T;
+  return Tinf - (Tinf-T0c)*Math.exp(-k*tMin);
+}
+function drawTemp(p) {
+  const cv = $('tempCv'), x = cv.getContext('2d'), W = 240, H = 150, L = 34, B = 128;
+  x.clearRect(0,0,W,H); x.font = '10px sans-serif'; x.fillStyle = '#444';
+  x.strokeStyle = '#999'; x.beginPath(); x.moveTo(L,8); x.lineTo(L,B); x.lineTo(W-6,B); x.stroke();
+  const T = model.T, ty = v => B - (v/70)*(B-10), tx = t => L + (t/T)*(W-L-10);
+  [0,20,40,57].forEach(v => x.fillText(v+'°', 4, ty(v)+3));
+  x.fillText('0', L-3, B+12); x.fillText(T.toFixed(1)+' min', W-50, B+12);
+  x.setLineDash([3,3]); x.strokeStyle = '#2e7d32'; x.beginPath(); x.moveTo(L, ty(57)); x.lineTo(W-6, ty(57)); x.stroke(); x.setLineDash([]);
+  x.strokeStyle = '#c0392b'; x.lineWidth = 2; x.beginPath();
+  const n = Math.max(1, Math.round(80*p));
+  for (let i = 0; i <= n; i++) { const t = T*p*i/n; i ? x.lineTo(tx(t), ty(coreTemp(t,T))) : x.moveTo(tx(t), ty(coreTemp(t,T))); }
+  x.stroke(); x.lineWidth = 1;
+}
+function sizzle() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const len = ac.sampleRate, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * (Math.random() < 0.3 ? 1 : 0.3) * (1 - i/len);
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2500;
+    const g = ac.createGain(); g.gain.value = 0.4;
+    src.connect(f).connect(g).connect(ac.destination); src.start();
+    src.onended = () => ac.close();
+  } catch (e) {}
+}
+$('cook').onclick = () => { cookStart = performance.now(); $('cook').disabled = true; $('status').textContent = 'Cooking…'; };
+
+function setStatus() {
+  $('status').innerHTML = `Done! Medium-rare in <b>${model.T.toFixed(1)} min</b>. Grill fits up to <b>${model.qty}</b> hamburger${model.qty>1?'s':''}. Cost ≈ <b>$${model.cost.toFixed(2)}</b>.`;
+}
+
+function onSlide(e) {
+  a = +$('a').value; b = +$('b').value;
+  if (b >= a) { if (e && e.target.id === 'a') { b = a-1; $('b').value = b; } else { a = b+1; $('a').value = a; } }
+  compute(); build(); progress = 0; cookStart = null; $('cook').disabled = false;
+  $('status').textContent = 'Adjust a and b, then press Cook.';
+  drawFood(0); drawTemp(0);
+}
+$('a').oninput = onSlide; $('b').oninput = onSlide;
+
+function loop(now) {
+  if (cookStart !== null) {
+    progress = Math.min(1, (now - cookStart)/SIM_MS);
+    foodMesh.material.color.copy(raw.clone().lerp(done, progress));
+    drawFood(progress); drawTemp(progress);
+    if (progress >= 1) { cookStart = null; $('cook').disabled = false; setStatus(); sizzle(); }
+  }
+  const pulse = 0.5 + 0.5*Math.sin(now/150);
+  rays.forEach((r, i) => r.material.opacity = 0.35 + 0.55*((pulse + i*0.1) % 1));
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+onSlide(); resize(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>

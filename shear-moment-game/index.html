@@ -1,57 +1,82 @@
 <title>Beam Quest</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
-:root{--bg:#f6f4ee;--card:#fff;--ink:#1d2330;--mute:#5d6576;--beam:#fdeccb;--beamline:#6b4e16;--acc:#2f6fd1;--good:#1f9d55;--bad:#d64545;--v:#2f6fd1;--m:#c2410c;--line:#d9d4c7}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1d222b;--ink:#e8ebf1;--mute:#9aa3b2;--beam:#4a3a1c;--beamline:#e0b862;--acc:#6aa3ff;--good:#3ecf7e;--bad:#ff6b6b;--v:#6aa3ff;--m:#ff9a5c;--line:#333a46;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#14171d;--card:#1d222b;--ink:#e8ebf1;--mute:#9aa3b2;--beam:#4a3a1c;--beamline:#e0b862;--acc:#6aa3ff;--good:#3ecf7e;--bad:#ff6b6b;--v:#6aa3ff;--m:#ff9a5c;--line:#333a46;color-scheme:dark}
+/* Layout: one blueprint drafting sheet; HUD strip on top, a level track, then the active "drawing" card. Single deliberate dark blueprint world. */
+:root{color-scheme:dark;
+--bg:#0b1f3a;--bg2:#0f2a4d;--card:#10294a;--ink:#e6f1ff;--mute:#8fb0d6;--line:#2c5583;
+--beam:#1b4472;--beamline:#7fd4ff;--acc:#4fd1ff;--good:#3ee08f;--bad:#ff5d73;--v:#4fd1ff;--m:#ffb547;
+--f-display:"Chakra Petch",ui-sans-serif,system-ui,sans-serif;--f-body:"IBM Plex Sans",system-ui,sans-serif;--f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:860px;margin:0 auto;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-h1{font-size:1.4rem;margin:.2em 0}
-.hud{display:flex;gap:10px;font-weight:600}
-.pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 12px}
-.progress{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:10px 0 16px}
-.progress>div{height:100%;background:var(--acc);transition:width .4s}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
-.step{color:var(--acc);font-weight:700;font-size:.85rem;letter-spacing:.06em;text-transform:uppercase}
-h2{margin:.2em 0 .4em;font-size:1.2rem}
-.eq{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border-radius:8px;padding:8px 12px;margin:8px 0;overflow-x:auto;white-space:nowrap}
+body{margin:0;color:var(--ink);font:16px/1.55 var(--f-body);
+background-color:var(--bg);
+background-image:linear-gradient(var(--bg2) 1px,transparent 1px),linear-gradient(90deg,var(--bg2) 1px,transparent 1px),linear-gradient(rgba(79,209,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(79,209,255,.06) 1px,transparent 1px);
+background-size:100px 100px,100px 100px,20px 20px,20px 20px;min-height:100%}
+main{max-width:880px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--acc);padding-bottom:10px}
+h1{font:700 clamp(1.7rem,5vw,2.4rem)/1 var(--f-display);margin:0;letter-spacing:.04em;text-transform:uppercase;text-shadow:0 0 18px rgba(79,209,255,.45)}
+h1 small{display:block;font:500 .72rem var(--f-mono);letter-spacing:.18em;color:var(--mute);text-shadow:none;margin-bottom:6px}
+.hud{display:flex;gap:8px}
+.pill{font:600 .95rem var(--f-mono);border:1px solid var(--line);background:rgba(16,41,74,.8);padding:6px 12px;font-variant-numeric:tabular-nums;display:flex;gap:6px;align-items:baseline}
+.pill i{font-style:normal;font-size:.7rem;color:var(--mute);letter-spacing:.1em}
+.pill.pop{animation:pop .4s}
+@keyframes pop{50%{transform:scale(1.18);border-color:var(--good)}}
+.track{display:flex;gap:4px;margin:16px 0}
+.track span{flex:1;height:8px;background:var(--line);clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);transition:background .3s}
+.track span.done{background:var(--acc);box-shadow:0 0 10px var(--acc)}
+.track span.now{background:var(--m)}
+#bar{display:none}.progress{display:none}
+.card{position:relative;background:rgba(16,41,74,.92);border:1px solid var(--line);padding:22px;margin-bottom:14px;animation:in .35s ease-out;backdrop-filter:blur(2px)}
+.card::before,.card::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--acc)}
+.card::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+.card::after{bottom:-2px;right:-2px;border-left:0;border-top:0}
+@keyframes in{from{opacity:.4;transform:translateY(8px)}}
+.step{font:500 .75rem var(--f-mono);color:var(--m);letter-spacing:.16em;text-transform:uppercase}
+h2{font:700 1.45rem/1.2 var(--f-display);margin:.2em 0 .6em;text-wrap:balance}
+p,li{max-width:68ch}
+.eq{font-family:var(--f-mono);background:rgba(4,15,30,.6);border-left:3px solid var(--acc);padding:10px 14px;margin:12px 0;overflow-x:auto;white-space:nowrap}
 .choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px}
-button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:10px 12px}
-button:hover{border-color:var(--acc)}
-button.right{background:var(--good);color:#fff;border-color:var(--good)}
-button.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
-button.primary{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}
-button:disabled{opacity:.6;cursor:default}
-.fb{margin-top:10px;min-height:1.5em;font-weight:500}
+button{font:600 1rem var(--f-body);cursor:pointer;border:1px solid var(--line);background:rgba(4,15,30,.5);color:var(--ink);padding:11px 12px;transition:transform .12s,border-color .12s,box-shadow .12s}
+button:hover:not(:disabled){border-color:var(--acc);box-shadow:0 0 0 1px var(--acc),0 0 14px rgba(79,209,255,.3);transform:translateY(-1px)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--m);outline-offset:2px}
+button.right{background:var(--good);color:#04210f;border-color:var(--good);animation:pop .4s}
+button.wrong{background:transparent;color:var(--bad);border-color:var(--bad);animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+button.primary{background:var(--acc);color:#04182d;border-color:var(--acc);font-family:var(--f-display);letter-spacing:.08em;text-transform:uppercase;padding:12px 22px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
+button:disabled{opacity:.55;cursor:default}
+button.right:disabled{opacity:1}
+.fb{margin-top:12px;min-height:1.5em}
 .fb.good{color:var(--good)}.fb.bad{color:var(--bad)}
 svg{width:100%;height:auto;display:block}
 .beam{fill:var(--beam);stroke:var(--beamline);stroke-width:2}
-.ink{stroke:var(--ink);fill:var(--ink)}
-.txt{fill:var(--ink);font:14px system-ui;}
-.vline{stroke:var(--v);stroke-width:3;fill:none}
-.mline{stroke:var(--m);stroke-width:3;fill:none}
+.txt{fill:var(--ink);font:14px var(--f-mono)}
+.vline{stroke:var(--v);stroke-width:3;fill:none;filter:drop-shadow(0 0 4px var(--v))}
+.mline{stroke:var(--m);stroke-width:3;fill:none;filter:drop-shadow(0 0 4px var(--m))}
 .axis{stroke:var(--mute);stroke-width:1}
 .cut{stroke:var(--bad);stroke-width:2;stroke-dasharray:5 4}
-input[type=range]{width:100%}
+input[type=range]{width:100%;accent-color:var(--bad)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-table{border-collapse:collapse;width:100%}
+table{border-collapse:collapse;width:100%;font-family:var(--f-mono)}
 td,th{border:1px solid var(--line);padding:6px;text-align:center}
-td input{width:5.5em;font:inherit;padding:4px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);text-align:center}
-td input.ok{border-color:var(--good);outline:2px solid var(--good)}
-td input.no{border-color:var(--bad);outline:2px solid var(--bad)}
+th{color:var(--mute);font-weight:500}
+td input,select{width:5.5em;font:inherit;padding:5px;border:1px solid var(--line);background:rgba(4,15,30,.6);color:var(--ink);text-align:center}
+select{width:auto}
+td input.ok{border-color:var(--good);box-shadow:0 0 8px var(--good)}
+td input.no{border-color:var(--bad);box-shadow:0 0 8px var(--bad)}
 .hint{color:var(--mute);font-size:.92rem}
-.live{display:flex;gap:16px;flex-wrap:wrap;font-weight:600}
-.live span b{font-family:ui-monospace,monospace}
-@media (max-width:520px){.card{padding:14px}}
+code{font-family:var(--f-mono);color:var(--m)}
+.live{display:flex;gap:16px;flex-wrap:wrap;font:600 1.05rem var(--f-mono);margin:8px 0}
+.float{position:fixed;font:700 1.3rem var(--f-display);color:var(--good);pointer-events:none;animation:up .9s ease-out forwards;z-index:9;text-shadow:0 0 10px var(--good)}
+@keyframes up{to{transform:translateY(-50px);opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 <main>
 <header>
-  <h1>🏗️ Beam Quest</h1>
-  <div class="hud"><span class="pill">⭐ <span id="xp">0</span> XP</span><span class="pill">🔥 <span id="streak">0</span></span></div>
+  <h1><small>ENGR 057 · WORKSHEET 11</small>Beam Quest</h1>
+  <div class="hud"><span class="pill" id="xpp"><i>XP</i><span id="xp">0</span></span><span class="pill" id="stp"><i>STREAK</i><span id="streak">0</span></span></div>
 </header>
-<div class="progress"><div id="bar" style="width:0"></div></div>
+<div class="progress"><div id="bar"></div></div><div class="track" id="track"></div>
 <div id="stage"></div>
 </main>
 
@@ -60,7 +85,9 @@ td input.no{border-color:var(--bad);outline:2px solid var(--bad)}
 let xp=0, streak=0, level=0;
 const $=s=>document.querySelector(s);
 const stage=$("#stage");
-function award(ok){ if(ok){streak++;xp+=10+5*Math.min(streak,5);} else streak=0; $("#xp").textContent=xp; $("#streak").textContent=streak; }
+function award(ok){ if(ok){streak++;xp+=10+5*Math.min(streak,5);} else streak=0; $("#xp").textContent=xp; $("#streak").textContent=streak;
+  if(ok){ const p=$("#xpp"); p.classList.remove("pop"); void p.offsetWidth; p.classList.add("pop");
+    const r=p.getBoundingClientRect(), f=document.createElement("div"); f.className="float"; f.textContent="+"+(10+5*Math.min(streak,5)); f.style.left=r.left+"px"; f.style.top=(r.bottom+4)+"px"; document.body.appendChild(f); setTimeout(()=>f.remove(),950); } }
 
 /* ---------- beam drawing (problem 1: length 2L, P at L) ---------- */
 // x in units of L. W = drawing width.
@@ -69,12 +96,12 @@ const px=x=>X0+x*SC;
 
 function beamSVG({cut=null, showReactions=false, leftOnly=false}={}){
   let s=`<svg viewBox="0 0 ${W} 200">`;
-  s+=`<defs><marker id="ah" viewBox="0 0 10 10" refX="5" refY="9" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,0 L5,10z" fill="currentColor"/></marker></defs>`;
+  s+=`<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="context-stroke"/></marker></defs>`;
   const end = leftOnly&&cut!=null ? cut : 2;
   s+=`<rect class="beam" x="${px(0)}" y="80" width="${px(end)-px(0)}" height="30"/>`;
   // supports
-  s+=`<polygon points="${px(0)},110 ${px(0)-16},135 ${px(0)+16},135" fill="var(--mute)"/>`;
-  if(!leftOnly) s+=`<circle cx="${px(2)}" cy="123" r="13" fill="var(--mute)"/>`;
+  s+=`<polygon points="${px(0)},110 ${px(0)-16},135 ${px(0)+16},135" fill="var(--line)" stroke="var(--beamline)"/>`;
+  if(!leftOnly) s+=`<circle cx="${px(2)}" cy="123" r="13" fill="var(--line)" stroke="var(--beamline)"/>`;
   // load P
   if(!leftOnly || cut>1){
     s+=`<g style="color:var(--ink)"><line x1="${px(1)}" y1="20" x2="${px(1)}" y2="76" stroke="currentColor" stroke-width="3" marker-end="url(#ah)"/></g><text class="txt" x="${px(1)+8}" y="32" font-weight="700">P</text>`;
@@ -124,16 +151,16 @@ function mcq(container, q, opts, correctIdx, explain, onDone){
     b.onclick=()=>{
       if(i===correctIdx){
         b.classList.add("right"); award(!tried);
-        fb.className="fb good"; fb.innerHTML="✅ "+explain;
+        fb.className="fb good"; fb.innerHTML=""+explain;
         ch.querySelectorAll("button").forEach(x=>x.disabled=true);
         onDone&&onDone();
-      } else { tried=true; award(false); b.classList.add("wrong"); b.disabled=true; fb.className="fb bad"; fb.textContent="❌ Not quite — try again."; }
+      } else { tried=true; award(false); b.classList.add("wrong"); b.disabled=true; fb.className="fb bad"; fb.textContent="Not quite — try again."; }
     };
     ch.appendChild(b);
   });
   container.appendChild(box);
 }
-function nextBtn(container, label="Next level ➜"){
+function nextBtn(container, label="Next level"){
   const b=document.createElement("button"); b.className="primary"; b.textContent=label; b.style.marginTop="12px";
   b.onclick=()=>go(level+1); container.appendChild(b);
 }
@@ -153,7 +180,7 @@ const levels=[
   <li><b>Plot</b> – sketch V(x) and M(x).</li></ol>
   ${beamSVG()}
   <p class="hint">Sign convention (from the worksheet): on the <b>left</b> piece, positive V points <b>down</b> on the cut face and positive M is <b>counter-clockwise</b>. Upward loads to the left of the cut push V up.</p>`);
-  nextBtn(c,"Start ➜");
+  nextBtn(c,"Start");
 },
 /* 1 reactions */
 ()=>{
@@ -208,8 +235,8 @@ const levels=[
     });
     award(all);
     const fb=$("#fb");
-    if(all){ fb.className="fb good"; fb.innerHTML="✅ Perfect! Notice: M(L⁻) = M(L⁺) — moment is continuous, but V jumps by P at the load."; $("#chk").disabled=true; nextBtn(c); }
-    else { fb.className="fb bad"; fb.innerHTML="❌ Red boxes are off. Tip: M(L) = (P/2)·L = 0.5 PL. At the roller (2L), M = −(P/2)(2L)+PL = 0."; }
+    if(all){ fb.className="fb good"; fb.innerHTML="Perfect! Notice: M(L⁻) = M(L⁺) — moment is continuous, but V jumps by P at the load."; $("#chk").disabled=true; nextBtn(c); }
+    else { fb.className="fb bad"; fb.innerHTML="Red boxes are off. Tip: M(L) = (P/2)·L = 0.5 PL. At the roller (2L), M = −(P/2)(2L)+PL = 0."; }
   };
 },
 /* 5 plot */
@@ -250,7 +277,7 @@ const levels=[
   const ans=[0,2,4]; const sel=[null,null,null];
   const names=["0<x<L","L<x<2L","2L<x<3L"];
   const pick=$("#pick");
-  pick.innerHTML=names.map((n,i)=>`<label>${n}: <select data-i="${i}" style="font:inherit;padding:6px;border-radius:8px;background:var(--bg);color:var(--ink);border:1px solid var(--line)"><option value="">?</option>${opts.map((o,j)=>`<option value="${j}">${o}</option>`).join("")}</select></label>`).join("")+`<button class="primary" id="go">Check</button>`;
+  pick.innerHTML=names.map((n,i)=>`<label>${n}: <select data-i="${i}" ><option value="">?</option>${opts.map((o,j)=>`<option value="${j}">${o}</option>`).join("")}</select></label>`).join("")+`<button class="primary" id="go">Check</button>`;
   const Vg=x=>{const s=x<1?0:x<2?1:2; return sel[s]==null?0:vals[sel[s]];};
   const Mg=x=>{let m=0,step=.005;for(let t=0;t<x;t+=step)m+=Vg(t)*step;return m;};
   const draw=()=>{ $("#bv").innerHTML=diagSVG(Vg,"vline","V",3); $("#bm").innerHTML=diagSVG(Mg,"mline","M",3); };
@@ -258,13 +285,13 @@ const levels=[
   draw();
   $("#go").onclick=()=>{
     const ok=sel.every((s,i)=>s===ans[i]); award(ok); const fb=$("#fb");
-    if(ok){ fb.className="fb good"; fb.innerHTML=`✅ Boss defeated! By symmetry A<sub>y</sub> = B<sub>y</sub> = P. V: P → 0 → −P. M rises to <b>PL</b> at x=L, stays flat at PL (V=0) until 2L, then drops back to 0 at 3L.`; $("#go").disabled=true; nextBtn(c,"Finish 🏁"); }
-    else { fb.className="fb bad"; fb.innerHTML="❌ Check your M diagram — does it end at 0 at the roller? Hint: find reactions by symmetry first, then V jumps down by P at each load."; }
+    if(ok){ fb.className="fb good"; fb.innerHTML=`Boss defeated! By symmetry A<sub>y</sub> = B<sub>y</sub> = P. V: P → 0 → −P. M rises to <b>PL</b> at x=L, stays flat at PL (V=0) until 2L, then drops back to 0 at 3L.`; $("#go").disabled=true; nextBtn(c,"Finish"); }
+    else { fb.className="fb bad"; fb.innerHTML="Check your M diagram — does it end at 0 at the roller? Hint: find reactions by symmetry first, then V jumps down by P at each load."; }
   };
 },
 /* 8 done */
 ()=>{
-  card(`Complete`,`🎉 You finished Beam Quest!`,`<p>Final score: <b>${xp} XP</b></p>
+  card(`Complete`,`You finished Beam Quest!`,`<p>Final score: <b>${xp} XP</b></p>
   <p><b>Cheat sheet:</b></p><ul>
   <li>Reactions first (ΣM about a support → one unknown).</li>
   <li>Cut each section at arbitrary x; left piece; ΣF<sub>y</sub> → V, ΣM<sub>cut</sub> → M.</li>
@@ -276,9 +303,9 @@ const levels=[
 ];
 
 function p2beam(){
-  const sc=x=>X0+x*180; let s=`<svg viewBox="0 0 ${W} 160"><defs><marker id="ah2" viewBox="0 0 10 10" refX="5" refY="9" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,0 L5,10z" fill="var(--ink)"/></marker></defs>`;
+  const sc=x=>X0+x*180; let s=`<svg viewBox="0 0 ${W} 160"><defs><marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="var(--ink)"/></marker></defs>`;
   s+=`<rect class="beam" x="${sc(0)}" y="70" width="540" height="30"/>`;
-  s+=`<polygon points="${sc(0)},100 ${sc(0)-16},125 ${sc(0)+16},125" fill="var(--mute)"/><polygon points="${sc(3)},100 ${sc(3)-16},125 ${sc(3)+16},125" fill="var(--mute)"/>`;
+  s+=`<polygon points="${sc(0)},100 ${sc(0)-16},125 ${sc(0)+16},125" fill="var(--line)" stroke="var(--beamline)"/><polygon points="${sc(3)},100 ${sc(3)-16},125 ${sc(3)+16},125" fill="var(--line)" stroke="var(--beamline)"/>`;
   [1,2].forEach(i=>s+=`<line x1="${sc(i)}" y1="15" x2="${sc(i)}" y2="64" stroke="var(--ink)" stroke-width="3" marker-end="url(#ah2)"/><text class="txt" x="${sc(i)+8}" y="30" font-weight="700">P</text>`);
   ["0","L","2L","3L"].forEach((t,i)=>s+=`<text class="txt" x="${sc(i)-8}" y="145">${t}</text>`);
   return s+`</svg>`;
@@ -288,6 +315,6 @@ function card(step,title,html){
   stage.innerHTML=""; const c=document.createElement("div"); c.className="card";
   c.innerHTML=`<div class="step">${step}</div><h2>${title}</h2>${html}`; stage.appendChild(c); return c;
 }
-function go(n){ level=n; $("#bar").style.width=(n/(levels.length-1)*100)+"%"; levels[n](); window.scrollTo(0,0); }
+function go(n){ level=n; $("#bar").style.width=(n/(levels.length-1)*100)+"%"; $("#track").innerHTML=levels.map((_,i)=>`<span class="${i<n?"done":i==n?"now":""}"></span>`).join(""); levels[n](); window.scrollTo(0,0); }
 go(0);
 </script>

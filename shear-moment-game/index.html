@@ -1,16 +1,12 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Beam Quest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <style>
 :root{--bg:#f6f4ee;--card:#fff;--ink:#1d2330;--mute:#5d6576;--beam:#fdeccb;--beamline:#6b4e16;--acc:#2f6fd1;--good:#1f9d55;--bad:#d64545;--v:#2f6fd1;--m:#c2410c;--line:#d9d4c7}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1d222b;--ink:#e8ebf1;--mute:#9aa3b2;--beam:#4a3a1c;--beamline:#e0b862;--acc:#6aa3ff;--good:#3ecf7e;--bad:#ff6b6b;--v:#6aa3ff;--m:#ff9a5c;--line:#333a46}}
-:root[data-theme="dark"]{--bg:#14171d;--card:#1d222b;--ink:#e8ebf1;--mute:#9aa3b2;--beam:#4a3a1c;--beamline:#e0b862;--acc:#6aa3ff;--good:#3ecf7e;--bad:#ff6b6b;--v:#6aa3ff;--m:#ff9a5c;--line:#333a46}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1d222b;--ink:#e8ebf1;--mute:#9aa3b2;--beam:#4a3a1c;--beamline:#e0b862;--acc:#6aa3ff;--good:#3ecf7e;--bad:#ff6b6b;--v:#6aa3ff;--m:#ff9a5c;--line:#333a46;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1d222b;--ink:#e8ebf1;--mute:#9aa3b2;--beam:#4a3a1c;--beamline:#e0b862;--acc:#6aa3ff;--good:#3ecf7e;--bad:#ff6b6b;--v:#6aa3ff;--m:#ff9a5c;--line:#333a46;color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:860px;margin:0 auto;padding:16px}
+main{max-width:860px;margin:0 auto;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 h1{font-size:1.4rem;margin:.2em 0}
 .hud{display:flex;gap:10px;font-weight:600}
@@ -48,10 +44,8 @@ td input.no{border-color:var(--bad);outline:2px solid var(--bad)}
 .hint{color:var(--mute);font-size:.92rem}
 .live{display:flex;gap:16px;flex-wrap:wrap;font-weight:600}
 .live span b{font-family:ui-monospace,monospace}
-@media (max-width:520px){main{padding:12px}.card{padding:14px}}
+@media (max-width:520px){.card{padding:14px}}
 </style>
-</head>
-<body>
 <main>
 <header>
   <h1>🏗️ Beam Quest</h1>
@@ -297,5 +291,3 @@ function card(step,title,html){
 function go(n){ level=n; $("#bar").style.width=(n/(levels.length-1)*100)+"%"; levels[n](); window.scrollTo(0,0); }
 go(0);
 </script>
-</body>
-</html>

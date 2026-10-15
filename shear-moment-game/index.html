@@ -69,18 +69,78 @@ code{font-family:var(--f-mono);color:var(--m)}
 .live{display:flex;gap:16px;flex-wrap:wrap;font:600 1.05rem var(--f-mono);margin:8px 0}
 .float{position:fixed;font:700 1.3rem var(--f-display);color:var(--good);pointer-events:none;animation:up .9s ease-out forwards;z-index:9;text-shadow:0 0 10px var(--good)}
 @keyframes up{to{transform:translateY(-50px);opacity:0}}
+.bot{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px}
+.bot svg{width:92px;flex:none}
+.bubble{position:relative;flex:1;min-width:0;background:rgba(4,15,30,.75);border:1px solid var(--acc);padding:12px 14px;font-size:.98rem;min-height:64px}
+.bubble::before{content:"";position:absolute;left:-9px;top:22px;border:8px solid transparent;border-right-color:var(--acc);border-left:0}
+.bubble b.name{display:block;font:500 .7rem var(--f-mono);letter-spacing:.16em;color:var(--m);margin-bottom:4px}
+.ctrl{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.ctrl button{padding:5px 10px;font:500 .78rem var(--f-mono);letter-spacing:.06em}
+.ctrl button.on{border-color:var(--good);color:var(--good)}
+#mouth{transition:height .08s}
+.bot.talk #antenna{fill:var(--good);filter:drop-shadow(0 0 6px var(--good))}
+.bot #eyes{animation:blink 4s infinite}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 <main>
 <header>
   <h1><small>ENGR 057 · WORKSHEET 11</small>Beam Quest</h1>
-  <div class="hud"><span class="pill" id="xpp"><i>XP</i><span id="xp">0</span></span><span class="pill" id="stp"><i>STREAK</i><span id="streak">0</span></span></div>
+  <div class="hud"><span class="pill" id="xpp"><i>V-BUCKS</i><span id="xp">0</span></span><span class="pill" id="stp"><i>STREAK</i><span id="streak">0</span></span></div>
 </header>
 <div class="progress"><div id="bar"></div></div><div class="track" id="track"></div>
+<div class="bot" id="bot">
+<svg viewBox="0 0 100 120" aria-hidden="true">
+<line x1="50" y1="6" x2="50" y2="22" stroke="var(--beamline)" stroke-width="3"/><circle id="antenna" cx="50" cy="6" r="5" fill="var(--m)"/>
+<rect x="18" y="22" width="64" height="50" rx="8" fill="var(--beam)" stroke="var(--beamline)" stroke-width="3"/>
+<g id="eyes" style="transform-origin:50px 42px"><circle cx="37" cy="42" r="7" fill="var(--acc)"/><circle cx="63" cy="42" r="7" fill="var(--acc)"/></g>
+<rect id="mouth" x="36" y="58" width="28" height="3" rx="1.5" fill="var(--acc)"/>
+<rect x="10" y="38" width="8" height="16" rx="2" fill="var(--line)"/><rect x="82" y="38" width="8" height="16" rx="2" fill="var(--line)"/>
+<rect x="28" y="76" width="44" height="34" rx="6" fill="var(--beam)" stroke="var(--beamline)" stroke-width="3"/>
+<text x="50" y="98" text-anchor="middle" style="fill:var(--m);font:700 12px var(--f-mono)">M=Fd</text>
+</svg>
+<div class="bubble"><b class="name">BOLT · BEAM BOT</b><span id="say"></span>
+<div class="ctrl"><button id="voiceBtn">Voice: off</button><button id="musicBtn">Music: off</button><button id="againBtn">Repeat</button></div></div>
+</div>
 <div id="stage"></div>
 </main>
 
 <script>
+/* ---------- robot voice + music ---------- */
+let voiceOn=false, musicOn=false, lastLine="", ac=null, mGain=null, mTimer=null, mouthT=null;
+const strip=h=>h.replace(/<sub>(.*?)<\/sub>/g,"$1").replace(/<[^>]+>/g,"").replace(/−/g,"minus ").replace(/Σ/g,"sum of ").replace(/⁻/g," minus").replace(/⁺/g," plus").replace(/→/g,", so ");
+function talkAnim(on){ const b=document.getElementById("bot"), m=document.getElementById("mouth"); clearInterval(mouthT);
+  b.classList.toggle("talk",on);
+  if(on) mouthT=setInterval(()=>{const h=3+Math.random()*9; m.setAttribute("height",h); m.setAttribute("y",59.5-h/2);},110);
+  else { m.setAttribute("height",3); m.setAttribute("y",58); } }
+function say(html){
+  lastLine=html; document.getElementById("say").innerHTML=html;
+  const txt=strip(html);
+  if(voiceOn && window.speechSynthesis){ try{
+    speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(txt);
+    u.pitch=0.6; u.rate=1.05;
+    const v=speechSynthesis.getVoices().find(v=>/en/i.test(v.lang)); if(v) u.voice=v;
+    u.onstart=()=>{talkAnim(true); duck(true);}; u.onend=u.onerror=()=>{talkAnim(false); duck(false);};
+    speechSynthesis.speak(u); return; }catch(e){} }
+  talkAnim(true); setTimeout(()=>talkAnim(false), Math.min(4000, 40*txt.length));
+}
+function duck(d){ if(mGain&&ac) mGain.gain.setTargetAtTime(d?0.02:0.06, ac.currentTime, 0.2); }
+function startMusic(){
+  ac=ac||new (window.AudioContext||window.webkitAudioContext)(); ac.resume();
+  mGain=ac.createGain(); mGain.gain.value=0.06; mGain.connect(ac.destination);
+  const bass=[45,45,41,43], arp=[0,7,12,15,12,7]; let step=0, t=ac.currentTime+0.05; const dur=0.16;
+  const note=(midi,when,len,type,vol)=>{const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=440*Math.pow(2,(midi-69)/12);
+    g.gain.setValueAtTime(vol,when);g.gain.exponentialRampToValueAtTime(0.001,when+len);o.connect(g);g.connect(mGain);o.start(when);o.stop(when+len+.02);};
+  mTimer=setInterval(()=>{ while(t<ac.currentTime+0.4){ const bar=Math.floor(step/24)%4, root=bass[bar];
+      note(root+24+arp[step%6],t,dur*.9,"square",0.25);
+      if(step%6===0) note(root,t,dur*5,"triangle",0.9);
+      if(step%12===6) note(root+36,t,0.05,"sawtooth",0.15);
+      step++; t+=dur; } },100);
+}
+function stopMusic(){ clearInterval(mTimer); if(mGain){mGain.disconnect(); mGain=null;} }
+document.addEventListener("DOMContentLoaded",()=>{});
+const wrongLines=["Beep boop, not that one. Check your free-body diagram again!","Error 404: answer not found. Try another!","Close! Remember: only forces on the LEFT piece count.","Recalculating... pick again."];
+
 /* ---------- state ---------- */
 let xp=0, streak=0, level=0;
 const $=s=>document.querySelector(s);
@@ -151,10 +211,10 @@ function mcq(container, q, opts, correctIdx, explain, onDone){
     b.onclick=()=>{
       if(i===correctIdx){
         b.classList.add("right"); award(!tried);
-        fb.className="fb good"; fb.innerHTML=""+explain;
+        fb.className="fb good"; fb.innerHTML=explain; say("Correct! "+explain);
         ch.querySelectorAll("button").forEach(x=>x.disabled=true);
         onDone&&onDone();
-      } else { tried=true; award(false); b.classList.add("wrong"); b.disabled=true; fb.className="fb bad"; fb.textContent="Not quite — try again."; }
+      } else { tried=true; award(false); b.classList.add("wrong"); b.disabled=true; fb.className="fb bad"; fb.textContent="Not quite — try again."; say(wrongLines[Math.floor(Math.random()*wrongLines.length)]); }
     };
     ch.appendChild(b);
   });
@@ -235,8 +295,8 @@ const levels=[
     });
     award(all);
     const fb=$("#fb");
-    if(all){ fb.className="fb good"; fb.innerHTML="Perfect! Notice: M(L⁻) = M(L⁺) — moment is continuous, but V jumps by P at the load."; $("#chk").disabled=true; nextBtn(c); }
-    else { fb.className="fb bad"; fb.innerHTML="Red boxes are off. Tip: M(L) = (P/2)·L = 0.5 PL. At the roller (2L), M = −(P/2)(2L)+PL = 0."; }
+    if(all){ fb.className="fb good"; fb.innerHTML="Perfect! Notice: M(L⁻) = M(L⁺) — moment is continuous, but V jumps by P at the load."; $("#chk").disabled=true; say("Perfect table! Moment is continuous at the load, but shear jumps by P."); nextBtn(c); }
+    else { say("A few boxes are off. M at L is P over 2 times L, so 0.5."); fb.className="fb bad"; fb.innerHTML="Red boxes are off. Tip: M(L) = (P/2)·L = 0.5 PL. At the roller (2L), M = −(P/2)(2L)+PL = 0."; }
   };
 },
 /* 5 plot */
@@ -285,13 +345,13 @@ const levels=[
   draw();
   $("#go").onclick=()=>{
     const ok=sel.every((s,i)=>s===ans[i]); award(ok); const fb=$("#fb");
-    if(ok){ fb.className="fb good"; fb.innerHTML=`Boss defeated! By symmetry A<sub>y</sub> = B<sub>y</sub> = P. V: P → 0 → −P. M rises to <b>PL</b> at x=L, stays flat at PL (V=0) until 2L, then drops back to 0 at 3L.`; $("#go").disabled=true; nextBtn(c,"Finish"); }
+    if(ok){ fb.className="fb good"; fb.innerHTML=`Boss defeated! By symmetry A<sub>y</sub> = B<sub>y</sub> = P. V: P → 0 → −P. M rises to <b>PL</b> at x=L, stays flat at PL (V=0) until 2L, then drops back to 0 at 3L.`; $("#go").disabled=true; nextBtn(c,"Finish"); say("Boss defeated! V goes P, zero, minus P. M climbs to P L, stays flat, then drops to zero."); }
     else { fb.className="fb bad"; fb.innerHTML="Check your M diagram — does it end at 0 at the roller? Hint: find reactions by symmetry first, then V jumps down by P at each load."; }
   };
 },
 /* 8 done */
 ()=>{
-  card(`Complete`,`You finished Beam Quest!`,`<p>Final score: <b>${xp} XP</b></p>
+  card(`Complete`,`You finished Beam Quest!`,`<p>Final score: <b>${xp} V-Bucks</b></p>
   <p><b>Cheat sheet:</b></p><ul>
   <li>Reactions first (ΣM about a support → one unknown).</li>
   <li>Cut each section at arbitrary x; left piece; ΣF<sub>y</sub> → V, ΣM<sub>cut</sub> → M.</li>
@@ -315,6 +375,10 @@ function card(step,title,html){
   stage.innerHTML=""; const c=document.createElement("div"); c.className="card";
   c.innerHTML=`<div class="step">${step}</div><h2>${title}</h2>${html}`; stage.appendChild(c); return c;
 }
-function go(n){ level=n; $("#bar").style.width=(n/(levels.length-1)*100)+"%"; $("#track").innerHTML=levels.map((_,i)=>`<span class="${i<n?"done":i==n?"now":""}"></span>`).join(""); levels[n](); window.scrollTo(0,0); }
+function go(n){ level=n; $("#bar").style.width=(n/(levels.length-1)*100)+"%"; $("#track").innerHTML=levels.map((_,i)=>`<span class="${i<n?"done":i==n?"now":""}"></span>`).join(""); levels[n](); say(intros[n]); window.scrollTo(0,0); }
+const intros=["Hi, I am Bolt, your beam bot! Turn on my voice and some music, then we will solve shear and moment diagrams in four steps: reactions, cut, equilibrium, plot.","Step one: reactions. Sum moments about A, because that wipes out A<sub>y</sub> and leaves only B<sub>y</sub>. Then sum forces in y.","Step two: cut the beam at some x before the load. Keep the LEFT piece. It only feels A<sub>y</sub>. Put V down and M counter-clockwise on the cut face.","Now cut past the load. The left piece feels A<sub>y</sub> AND P. The tricky part: P is a distance x minus L from the cut.","Plug numbers into your equations. Write V in units of P and M in units of P L. Watch what happens right before and right after the load.","Slide the cut and watch the diagrams draw. Notice V is flat, and M is straight lines whose slope equals V.","These rules are cheat codes. Learn them and you can sketch diagrams without doing any equations.","Boss fight! First find reactions by symmetry. Each support holds P. Then V drops by P at each load.","Mission complete! You earned your V-Bucks, engineer. Go crush that worksheet."];
+document.getElementById("voiceBtn").onclick=e=>{voiceOn=!voiceOn; e.target.textContent="Voice: "+(voiceOn?"on":"off"); e.target.classList.toggle("on",voiceOn); if(voiceOn) say(lastLine); else {try{speechSynthesis.cancel()}catch(_){}} };
+document.getElementById("musicBtn").onclick=e=>{musicOn=!musicOn; e.target.textContent="Music: "+(musicOn?"on":"off"); e.target.classList.toggle("on",musicOn); try{ musicOn?startMusic():stopMusic(); }catch(_){} };
+document.getElementById("againBtn").onclick=()=>say(lastLine);
 go(0);
 </script>

@@ -145,7 +145,7 @@ function startMusic(){
 }
 function stopMusic(){ clearInterval(mTimer); if(mGain){mGain.disconnect(); mGain=null;} }
 document.addEventListener("DOMContentLoaded",()=>{});
-const wrongLines=["Beep boop, not that one. Check your free-body diagram again!","Error 404: answer not found. Try another!","Close! Remember: only forces on the LEFT piece count.","Recalculating... pick again."];
+const wrongLines=["Beep boop, that is not the one. Check your free-body diagram and try again.","Error 404: answer not found. Please try another one.","Close! Remember that only the forces on the left piece count.","Recalculating. Please pick again."];
 
 /* ---------- state ---------- */
 let xp=0, streak=0, level=0;
@@ -207,7 +207,7 @@ const V1=x=> x<1? .5 : (x<2? -.5 : 0);
 const M1=x=> x<=1? .5*x : -.5*x+1;
 
 /* ---------- reusable multiple-choice ---------- */
-function mcq(container, q, opts, correctIdx, explain, onDone){
+function mcq(container, q, opts, correctIdx, explain, onDone, spoken){
   const box=document.createElement("div");
   box.innerHTML=`<p>${q}</p><div class="choices"></div><div class="fb"></div>`;
   const ch=box.querySelector(".choices"), fb=box.querySelector(".fb");
@@ -217,7 +217,7 @@ function mcq(container, q, opts, correctIdx, explain, onDone){
     b.onclick=()=>{
       if(i===correctIdx){
         b.classList.add("right"); award(!tried);
-        fb.className="fb good"; fb.innerHTML=explain; say("Correct! "+explain);
+        fb.className="fb good"; fb.innerHTML=explain; say(spoken||("Correct! "+explain));
         ch.querySelectorAll("button").forEach(x=>x.disabled=true);
         onDone&&onDone();
       } else { tried=true; award(false); b.classList.add("wrong"); b.disabled=true; fb.className="fb bad"; fb.textContent="Not quite — try again."; say(wrongLines[Math.floor(Math.random()*wrongLines.length)]); }
@@ -231,7 +231,7 @@ function nextBtn(container, label="Next level"){
   b.onclick=()=>go(level+1); container.appendChild(b);
 }
 function chain(card, qs){ // run questions one at a time, then Next button
-  let i=0; const run=()=>{ if(i>=qs.length) return nextBtn(card); const q=qs[i++]; mcq(card,q[0],q[1],q[2],q[3],run); }; run();
+  let i=0; const run=()=>{ if(i>=qs.length) return nextBtn(card); const q=qs[i++]; mcq(card,q[0],q[1],q[2],q[3],run,q[4]); }; run();
 }
 
 /* ---------- levels ---------- */
@@ -254,8 +254,8 @@ const levels=[
   <p>Pin at A (x=0), roller at B (x=2L), load P at x=L. No horizontal loads, so A<sub>x</sub>=0.</p>
   <div class="eq">ΣM<sub>A</sub> = 0:  B<sub>y</sub>·(2L) − P·(L) = 0</div>`);
   chain(c,[
-    ["Solve for B<sub>y</sub>:",["P","P/2","2P","PL"],1,"B<sub>y</sub> = PL / 2L = <b>P/2</b>. Taking moments about A kills A<sub>y</sub> so only one unknown remains."],
-    ["Now ΣF<sub>y</sub> = 0: A<sub>y</sub> + B<sub>y</sub> − P = 0. What is A<sub>y</sub>?",["P/2","P","0","−P/2"],0,"A<sub>y</sub> = P − P/2 = <b>P/2</b>. Makes sense — the load is centered, so each support takes half."]
+    ["Solve for B<sub>y</sub>:",["P","P/2","2P","PL"],1,"B<sub>y</sub> = PL / 2L = <b>P/2</b>. Taking moments about A kills A<sub>y</sub> so only one unknown remains.","Correct! When you take moments about A, A<sub>y</sub> drops out. That leaves B<sub>y</sub> times 2L equal to P times L, so B<sub>y</sub> is P over 2."],
+    ["Now ΣF<sub>y</sub> = 0: A<sub>y</sub> + B<sub>y</sub> − P = 0. What is A<sub>y</sub>?",["P/2","P","0","−P/2"],0,"A<sub>y</sub> = P − P/2 = <b>P/2</b>. Makes sense — the load is centered, so each support takes half.","Correct! A<sub>y</sub> is P minus P over 2, which is P over 2. That makes sense, because the load is in the middle, so each support carries half of it."]
   ]);
 },
 /* 2 cut 1 */
@@ -267,8 +267,8 @@ const levels=[
   const draw=()=>{ const x=+$("#sl").value; $("#fbd").innerHTML=beamSVG({cut:x,showReactions:true,leftOnly:true}); };
   $("#sl").oninput=draw; draw();
   chain(c,[
-    ["From ΣF<sub>y</sub>=0, V(x) = ?",["P/2","−P/2","P","Px/2"],0,"V(x) = <b>P/2</b> — constant, because no new force appears between 0 and the cut."],
-    ["From ΣM<sub>cut</sub>=0, M(x) = ?  (A<sub>y</sub> is a distance x from the cut)",["P/2","(P/2)x","Px","−(P/2)x + PL"],1,"M(x) = <b>(P/2)x</b> — moment arm grows with x, so M grows linearly. ✔ Matches the worksheet check."]
+    ["From ΣF<sub>y</sub>=0, V(x) = ?",["P/2","−P/2","P","Px/2"],0,"V(x) = <b>P/2</b> — constant, because no new force appears between 0 and the cut.","Correct! V is P over 2, and it stays constant, because no new force acts between the left end and the cut."],
+    ["From ΣM<sub>cut</sub>=0, M(x) = ?  (A<sub>y</sub> is a distance x from the cut)",["P/2","(P/2)x","Px","−(P/2)x + PL"],1,"M(x) = <b>(P/2)x</b> — moment arm grows with x, so M grows linearly. ✔ Matches the worksheet check.","Correct! M equals P over 2 times x. The moment arm grows with x, so the moment grows in a straight line. That matches the check on your worksheet."]
   ]);
 },
 /* 3 cut 2 */
@@ -280,9 +280,9 @@ const levels=[
   const draw=()=>{ const x=+$("#sl").value; $("#fbd").innerHTML=beamSVG({cut:x,showReactions:true,leftOnly:true}); $("#dist").innerHTML=`Cut at x = ${x.toFixed(2)}L → distance from P to cut = ${(x-1).toFixed(2)}L`; };
   $("#sl").oninput=draw; draw();
   chain(c,[
-    ["What is the moment arm of P about the cut?",["x","L","x − L","2L − x"],2,"P sits at L, the cut at x, so the arm is <b>x − L</b>. This is the key hint in part (e)!"],
-    ["ΣF<sub>y</sub>=0: P/2 − P − V = 0 → V(x) = ?",["P/2","−P/2","−P","0"],1,"V(x) = <b>−P/2</b>. Crossing the downward load P made V drop by exactly P."],
-    ["ΣM<sub>cut</sub>=0: M − (P/2)x + P(x − L) = 0 → M(x) = ?",["(P/2)x","−(P/2)x + PL","(P/2)x − PL","−Px + PL"],1,"M = (P/2)x − Px + PL = <b>−(P/2)x + PL</b>. ✔ Matches the worksheet check."]
+    ["What is the moment arm of P about the cut?",["x","L","x − L","2L − x"],2,"P sits at L, the cut at x, so the arm is <b>x − L</b>. This is the key hint in part (e)!","Correct! The load sits at L and the cut is at x, so the moment arm is x minus L. That is the key hint in part e."],
+    ["ΣF<sub>y</sub>=0: P/2 − P − V = 0 → V(x) = ?",["P/2","−P/2","−P","0"],1,"V(x) = <b>−P/2</b>. Crossing the downward load P made V drop by exactly P.","Correct! V is negative P over 2. When you pass the downward load, the shear drops by exactly P."],
+    ["ΣM<sub>cut</sub>=0: M − (P/2)x + P(x − L) = 0 → M(x) = ?",["(P/2)x","−(P/2)x + PL","(P/2)x − PL","−Px + PL"],1,"M = (P/2)x − Px + PL = <b>−(P/2)x + PL</b>. ✔ Matches the worksheet check.","Correct! When you simplify, M equals negative P over 2 times x, plus P L. That matches the check on your worksheet."]
   ]);
 },
 /* 4 table */
@@ -301,8 +301,8 @@ const levels=[
     });
     award(all);
     const fb=$("#fb");
-    if(all){ fb.className="fb good"; fb.innerHTML="Perfect! Notice: M(L⁻) = M(L⁺) — moment is continuous, but V jumps by P at the load."; $("#chk").disabled=true; say("Perfect table! Moment is continuous at the load, but shear jumps by P."); nextBtn(c); }
-    else { say("A few boxes are off. M at L is P over 2 times L, so 0.5."); fb.className="fb bad"; fb.innerHTML="Red boxes are off. Tip: M(L) = (P/2)·L = 0.5 PL. At the roller (2L), M = −(P/2)(2L)+PL = 0."; }
+    if(all){ fb.className="fb good"; fb.innerHTML="Perfect! Notice: M(L⁻) = M(L⁺) — moment is continuous, but V jumps by P at the load."; $("#chk").disabled=true; say("Perfect table! The moment is continuous at the load, but the shear jumps by P."); nextBtn(c); }
+    else { say("A few boxes are off. Here is a hint: the moment at L is P over 2 times L, so you should enter 0.5."); fb.className="fb bad"; fb.innerHTML="Red boxes are off. Tip: M(L) = (P/2)·L = 0.5 PL. At the roller (2L), M = −(P/2)(2L)+PL = 0."; }
   };
 },
 /* 5 plot */
@@ -318,19 +318,19 @@ const levels=[
     $("#lv").textContent=(x>=2?"0 (end)":fmt(V1(x))+" P"); $("#lm").textContent=fmt(M1(x))+" PL"; };
   $("#sl").oninput=draw; draw();
   chain(c,[
-    ["Is the V diagram made of straight lines or curves?",["Flat (horizontal) lines","Sloped lines","Parabolas"],0,"V is <b>flat</b> between point loads — no distributed load means V doesn't change."],
-    ["And the M diagram?",["Flat lines","Straight sloped lines","Parabolas"],1,"M is made of <b>straight sloped lines</b>. Its slope equals V: +P/2 then −P/2."],
-    ["Where is M maximum, and what is it?",["x=0, M=0","x=L, M=PL/2","x=2L, M=PL","x=L, M=PL"],1,"M<sub>max</sub> = <b>PL/2 at x = L</b> — exactly where V crosses zero."]
+    ["Is the V diagram made of straight lines or curves?",["Flat (horizontal) lines","Sloped lines","Parabolas"],0,"V is <b>flat</b> between point loads — no distributed load means V doesn't change.","Correct! The shear diagram is made of flat lines. With no distributed load, the shear does not change between point loads."],
+    ["And the M diagram?",["Flat lines","Straight sloped lines","Parabolas"],1,"M is made of <b>straight sloped lines</b>. Its slope equals V: +P/2 then −P/2.","Correct! The moment diagram is made of straight, sloped lines. The slope is positive P over 2 at first, and then negative P over 2."],
+    ["Where is M maximum, and what is it?",["x=0, M=0","x=L, M=PL/2","x=2L, M=PL","x=L, M=PL"],1,"M<sub>max</sub> = <b>PL/2 at x = L</b> — exactly where V crosses zero.","Correct! The maximum moment is P L over 2, at x equals L. That is exactly where the shear changes sign."]
   ]);
 },
 /* 6 rules */
 ()=>{
   const c=card(`Level 6`,`Unlock the shortcut rules`,`<p>These patterns let you sketch diagrams <b>without</b> writing equations (Problem 2!).</p>`);
   chain(c,[
-    ["At a downward point load P, the V diagram…",["Jumps down by P","Jumps up by P","Stays the same","Has a kink"],0,"<b>Jumps down by P</b> (an upward reaction makes it jump up)."],
-    ["The slope of the M diagram equals…",["the load","V","−V","zero"],1,"dM/dx = <b>V</b>. Positive V → M rising; negative V → M falling; V = 0 → M flat."],
-    ["At a pin or roller at the END of a beam (no applied moment), M is…",["Max","Zero","Equal to the reaction","Undefined"],1,"<b>M = 0</b> at free pin/roller ends."],
-    ["The change in M between two points equals…",["The area under the V diagram","The jump in V","The load","Always zero"],0,"ΔM = <b>area under V</b>. E.g. 0→L: (P/2)·L = PL/2 ✔"]
+    ["At a downward point load P, the V diagram…",["Jumps down by P","Jumps up by P","Stays the same","Has a kink"],0,"<b>Jumps down by P</b> (an upward reaction makes it jump up).","Correct! The shear jumps down by P at a downward load. An upward reaction makes it jump up instead."],
+    ["The slope of the M diagram equals…",["the load","V","−V","zero"],1,"dM/dx = <b>V</b>. Positive V → M rising; negative V → M falling; V = 0 → M flat.","Correct! The slope of the moment diagram equals the shear. When V is positive, M rises. When V is negative, M falls. When V is zero, M stays flat."],
+    ["At a pin or roller at the END of a beam (no applied moment), M is…",["Max","Zero","Equal to the reaction","Undefined"],1,"<b>M = 0</b> at free pin/roller ends.","Correct! The moment is zero at a pin or roller at the end of a beam, as long as no moment is applied there."],
+    ["The change in M between two points equals…",["The area under the V diagram","The jump in V","The load","Always zero"],0,"ΔM = <b>area under V</b>. E.g. 0→L: (P/2)·L = PL/2 ✔","Correct! The change in moment equals the area under the shear diagram. For example, from zero to L, the area is P over 2 times L, which is P L over 2."]
   ]);
 },
 /* 7 boss: problem 2 */
@@ -351,7 +351,7 @@ const levels=[
   draw();
   $("#go").onclick=()=>{
     const ok=sel.every((s,i)=>s===ans[i]); award(ok); const fb=$("#fb");
-    if(ok){ fb.className="fb good"; fb.innerHTML=`Boss defeated! By symmetry A<sub>y</sub> = B<sub>y</sub> = P. V: P → 0 → −P. M rises to <b>PL</b> at x=L, stays flat at PL (V=0) until 2L, then drops back to 0 at 3L.`; $("#go").disabled=true; nextBtn(c,"Finish"); say("Boss defeated! V goes P, zero, minus P. M climbs to P L, stays flat, then drops to zero."); }
+    if(ok){ fb.className="fb good"; fb.innerHTML=`Boss defeated! By symmetry A<sub>y</sub> = B<sub>y</sub> = P. V: P → 0 → −P. M rises to <b>PL</b> at x=L, stays flat at PL (V=0) until 2L, then drops back to 0 at 3L.`; $("#go").disabled=true; nextBtn(c,"Finish"); say("Boss defeated! The shear goes from P, to zero, to negative P. The moment climbs to P L, stays flat, and then drops back to zero."); }
     else { fb.className="fb bad"; fb.innerHTML="Check your M diagram — does it end at 0 at the roller? Hint: find reactions by symmetry first, then V jumps down by P at each load."; }
   };
 },
@@ -382,7 +382,7 @@ function card(step,title,html){
   c.innerHTML=`<div class="step">${step}</div><h2>${title}</h2>${html}`; stage.appendChild(c); return c;
 }
 function go(n){ level=n; $("#bar").style.width=(n/(levels.length-1)*100)+"%"; $("#track").innerHTML=levels.map((_,i)=>`<span class="${i<n?"done":i==n?"now":""}"></span>`).join(""); levels[n](); say(intros[n]); window.scrollTo(0,0); }
-const intros=["Hi, I am Bolt, your beam bot! Turn on my voice and some music, then we will solve shear and moment diagrams in four steps: reactions, cut, equilibrium, plot.","Step one: reactions. Sum moments about A, because that wipes out A<sub>y</sub> and leaves only B<sub>y</sub>. Then sum forces in y.","Step two: cut the beam at some x before the load. Keep the LEFT piece. It only feels A<sub>y</sub>. Put V down and M counter-clockwise on the cut face.","Now cut past the load. The left piece feels A<sub>y</sub> AND P. The tricky part: P is a distance x minus L from the cut.","Plug numbers into your equations. Write V in units of P and M in units of P L. Watch what happens right before and right after the load.","Slide the cut and watch the diagrams draw. Notice V is flat, and M is straight lines whose slope equals V.","These rules are cheat codes. Learn them and you can sketch diagrams without doing any equations.","Boss fight! First find reactions by symmetry. Each support holds P. Then V drops by P at each load.","Mission complete! You earned your V-Bucks, engineer. Go crush that worksheet."];
+const intros=["Hi, I am Bolt, your beam bot! Turn on my voice and some music if you like. Then we will solve shear and moment diagrams in four steps: find the reactions, make a cut, apply equilibrium, and plot the diagrams.","Step one is finding the reactions. First, sum the moments about A. That removes A<sub>y</sub> from the equation and leaves only B<sub>y</sub>. Then sum the forces in the y direction.","Step two is cutting the beam at some point x before the load. Keep the left piece. The only outside force on it is A<sub>y</sub>. Draw V pointing down and M turning counterclockwise on the cut face.","Now make the cut after the load. This time the left piece has both A<sub>y</sub> and P acting on it. Here is the tricky part: P is a distance of x minus L from the cut.","Now plug numbers into your equations. Write V in units of P, and write M in units of P times L. Watch what happens just before and just after the load.","Slide the cut and watch the diagrams draw themselves. Notice that V is flat, and that M is made of straight lines whose slope equals V.","These rules are like cheat codes. Once you learn them, you can sketch the diagrams without writing any equations.","Boss fight! First, use symmetry to find the reactions. Each support carries P. Then the shear drops by P at each load.","Mission complete! You earned your V-Bucks, engineer. Now go crush that worksheet."];
 document.getElementById("voiceBtn").onclick=e=>{voiceOn=!voiceOn; e.target.textContent="Voice: "+(voiceOn?"on":"off"); e.target.classList.toggle("on",voiceOn); if(voiceOn) say(lastLine); else {try{speechSynthesis.cancel()}catch(_){}} };
 document.getElementById("musicBtn").onclick=e=>{musicOn=!musicOn; e.target.textContent="Music: "+(musicOn?"on":"off"); e.target.classList.toggle("on",musicOn); try{ musicOn?startMusic():stopMusic(); }catch(_){} };
 document.getElementById("againBtn").onclick=()=>say(lastLine);

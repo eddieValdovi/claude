@@ -118,12 +118,18 @@ function say(html){
   const txt=strip(html);
   if(voiceOn && window.speechSynthesis){ try{
     speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(txt);
-    u.pitch=0.6; u.rate=1.05;
-    const v=speechSynthesis.getVoices().find(v=>/en/i.test(v.lang)); if(v) u.voice=v;
+    u.pitch=0.9; u.rate=0.98;
+    const v=pickVoice(); if(v) u.voice=v;
     u.onstart=()=>{talkAnim(true); duck(true);}; u.onend=u.onerror=()=>{talkAnim(false); duck(false);};
     speechSynthesis.speak(u); return; }catch(e){} }
   talkAnim(true); setTimeout(()=>talkAnim(false), Math.min(4000, 40*txt.length));
 }
+const maleNames=["Google UK English Male","Microsoft Guy","Microsoft Andrew","Microsoft Brian","Microsoft Christopher","Microsoft Eric","Microsoft Davis","Microsoft David","Microsoft Mark","Daniel","Aaron","Alex","Arthur","Tom","Evan","Nathan","Oliver","Rishi","Gordon","Reed"];
+const robotish=/Fred|Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Jester|Organ|Trinoids|Whisper|Zarvox|Wobble|Superstar|Ralph|Junior/i;
+function pickVoice(){ const vs=(speechSynthesis.getVoices()||[]).filter(v=>/^en/i.test(v.lang)&&!robotish.test(v.name));
+  for(const n of maleNames){ const hit=vs.find(v=>v.name.includes(n)&&!/female/i.test(v.name)); if(hit) return hit; }
+  return vs.find(v=>/\bmale\b/i.test(v.name)) || vs.find(v=>/natural|online|enhanced|premium/i.test(v.name)) || vs[0]; }
+try{ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }catch(_){}
 function duck(d){ if(mGain&&ac) mGain.gain.setTargetAtTime(d?0.02:0.06, ac.currentTime, 0.2); }
 function startMusic(){
   ac=ac||new (window.AudioContext||window.webkitAudioContext)(); ac.resume();

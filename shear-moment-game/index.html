@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beam Quest</title>
+<style>
+:root{--bg:#f6f4ee;--card:#fff;--ink:#1d2330;--mute:#5d6576;--beam:#fdeccb;--beamline:#6b4e16;--acc:#2f6fd1;--good:#1f9d55;--bad:#d64545;--v:#2f6fd1;--m:#c2410c;--line:#d9d4c7}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1d222b;--ink:#e8ebf1;--mute:#9aa3b2;--beam:#4a3a1c;--beamline:#e0b862;--acc:#6aa3ff;--good:#3ecf7e;--bad:#ff6b6b;--v:#6aa3ff;--m:#ff9a5c;--line:#333a46}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1d222b;--ink:#e8ebf1;--mute:#9aa3b2;--beam:#4a3a1c;--beamline:#e0b862;--acc:#6aa3ff;--good:#3ecf7e;--bad:#ff6b6b;--v:#6aa3ff;--m:#ff9a5c;--line:#333a46}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:860px;margin:0 auto;padding:16px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-size:1.4rem;margin:.2em 0}
+.hud{display:flex;gap:10px;font-weight:600}
+.pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+.progress{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:10px 0 16px}
+.progress>div{height:100%;background:var(--acc);transition:width .4s}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+.step{color:var(--acc);font-weight:700;font-size:.85rem;letter-spacing:.06em;text-transform:uppercase}
+h2{margin:.2em 0 .4em;font-size:1.2rem}
+.eq{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border-radius:8px;padding:8px 12px;margin:8px 0;overflow-x:auto;white-space:nowrap}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:10px 12px}
+button:hover{border-color:var(--acc)}
+button.right{background:var(--good);color:#fff;border-color:var(--good)}
+button.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
+button.primary{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}
+button:disabled{opacity:.6;cursor:default}
+.fb{margin-top:10px;min-height:1.5em;font-weight:500}
+.fb.good{color:var(--good)}.fb.bad{color:var(--bad)}
+svg{width:100%;height:auto;display:block}
+.beam{fill:var(--beam);stroke:var(--beamline);stroke-width:2}
+.ink{stroke:var(--ink);fill:var(--ink)}
+.txt{fill:var(--ink);font:14px system-ui;}
+.vline{stroke:var(--v);stroke-width:3;fill:none}
+.mline{stroke:var(--m);stroke-width:3;fill:none}
+.axis{stroke:var(--mute);stroke-width:1}
+.cut{stroke:var(--bad);stroke-width:2;stroke-dasharray:5 4}
+input[type=range]{width:100%}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+table{border-collapse:collapse;width:100%}
+td,th{border:1px solid var(--line);padding:6px;text-align:center}
+td input{width:5.5em;font:inherit;padding:4px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);text-align:center}
+td input.ok{border-color:var(--good);outline:2px solid var(--good)}
+td input.no{border-color:var(--bad);outline:2px solid var(--bad)}
+.hint{color:var(--mute);font-size:.92rem}
+.live{display:flex;gap:16px;flex-wrap:wrap;font-weight:600}
+.live span b{font-family:ui-monospace,monospace}
+@media (max-width:520px){main{padding:12px}.card{padding:14px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>🏗️ Beam Quest</h1>
+  <div class="hud"><span class="pill">⭐ <span id="xp">0</span> XP</span><span class="pill">🔥 <span id="streak">0</span></span></div>
+</header>
+<div class="progress"><div id="bar" style="width:0"></div></div>
+<div id="stage"></div>
+</main>
+
+<script>
+/* ---------- state ---------- */
+let xp=0, streak=0, level=0;
+const $=s=>document.querySelector(s);
+const stage=$("#stage");
+function award(ok){ if(ok){streak++;xp+=10+5*Math.min(streak,5);} else streak=0; $("#xp").textContent=xp; $("#streak").textContent=streak; }
+
+/* ---------- beam drawing (problem 1: length 2L, P at L) ---------- */
+// x in units of L. W = drawing width.
+const W=640, X0=50, SC=270; // 2L -> 540px
+const px=x=>X0+x*SC;
+
+function beamSVG({cut=null, showReactions=false, leftOnly=false}={}){
+  let s=`<svg viewBox="0 0 ${W} 200">`;
+  s+=`<defs><marker id="ah" viewBox="0 0 10 10" refX="5" refY="9" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,0 L5,10z" fill="currentColor"/></marker></defs>`;
+  const end = leftOnly&&cut!=null ? cut : 2;
+  s+=`<rect class="beam" x="${px(0)}" y="80" width="${px(end)-px(0)}" height="30"/>`;
+  // supports
+  s+=`<polygon points="${px(0)},110 ${px(0)-16},135 ${px(0)+16},135" fill="var(--mute)"/>`;
+  if(!leftOnly) s+=`<circle cx="${px(2)}" cy="123" r="13" fill="var(--mute)"/>`;
+  // load P
+  if(!leftOnly || cut>1){
+    s+=`<g style="color:var(--ink)"><line x1="${px(1)}" y1="20" x2="${px(1)}" y2="76" stroke="currentColor" stroke-width="3" marker-end="url(#ah)"/></g><text class="txt" x="${px(1)+8}" y="32" font-weight="700">P</text>`;
+  }
+  // reactions
+  if(showReactions){
+    s+=`<g style="color:var(--good)"><line x1="${px(0)}" y1="190" x2="${px(0)}" y2="140" stroke="currentColor" stroke-width="3" marker-end="url(#ah)"/></g><text class="txt" x="${px(0)+8}" y="180" fill="var(--good)">A<tspan dy="4" font-size="11">y</tspan><tspan dy="-4"> = P/2</tspan></text>`;
+    if(!leftOnly) s+=`<g style="color:var(--good)"><line x1="${px(2)}" y1="190" x2="${px(2)}" y2="140" stroke="currentColor" stroke-width="3" marker-end="url(#ah)"/></g><text class="txt" x="${px(2)-110}" y="180">B<tspan dy="4" font-size="11">y</tspan><tspan dy="-4"> = P/2</tspan></text>`;
+  }
+  // cut + internal forces
+  if(cut!=null){
+    s+=`<line class="cut" x1="${px(cut)}" y1="60" x2="${px(cut)}" y2="130"/>`;
+    if(leftOnly){
+      s+=`<g style="color:var(--v)"><line x1="${px(cut)+6}" y1="60" x2="${px(cut)+6}" y2="105" stroke="currentColor" stroke-width="3" marker-end="url(#ah)"/></g><text class="txt" x="${px(cut)+12}" y="70" fill="var(--v)" font-weight="700" style="fill:var(--v)">V</text>`;
+      s+=`<path d="M${px(cut)+24},120 A22,22 0 0 0 ${px(cut)+24},72" stroke="var(--m)" stroke-width="3" fill="none" marker-end="url(#ah)" style="color:var(--m)"/><text x="${px(cut)+36}" y="125" style="fill:var(--m);font:700 14px system-ui">M</text>`;
+    }
+  }
+  s+=`<text class="txt" x="${px(0)-4}" y="155">0</text><text class="txt" x="${px(1)-6}" y="155">L</text><text class="txt" x="${px(2)-10}" y="155">2L</text>`;
+  return s+`</svg>`;
+}
+
+/* V and M diagrams from piecewise functions; f(x) returns value in units of P (V) or PL (M) */
+function diagSVG(f, cls, label, xmax=2, cut=null, upto=null){
+  const H=150, mid=75, k=110; // k px per unit
+  const sc=(x)=>X0+x*(540/xmax);
+  let pts=[]; const end = upto==null?xmax:upto;
+  for(let i=0;i<=400;i++){ const x=i/400*end; pts.push([sc(x), mid - f(x)*k*(xmax==2?1:0.9)]); }
+  // insert vertical jumps by drawing polyline as-is (fine resolution shows jumps)
+  let s=`<svg viewBox="0 0 ${W} ${H}"><line class="axis" x1="${X0}" y1="${mid}" x2="${X0+550}" y2="${mid}"/><line class="axis" x1="${X0}" y1="10" x2="${X0}" y2="${H-10}"/>`;
+  s+=`<text x="10" y="20" style="fill:var(--${cls[0]});font:700 16px system-ui">${label}</text>`;
+  for(let i=1;i<=xmax;i++) s+=`<line class="axis" x1="${sc(i)}" y1="${mid-5}" x2="${sc(i)}" y2="${mid+5}"/><text class="txt" x="${sc(i)-6}" y="${mid+22}" font-size="12">${i==1?'L':i+'L'}</text>`;
+  s+=`<polyline class="${cls}" points="${[[X0,mid],...pts].map(p=>p.join(',')).join(' ')}"/>`;
+  if(cut!=null) s+=`<line class="cut" x1="${sc(cut)}" y1="10" x2="${sc(cut)}" y2="${H-10}"/>`;
+  return s+`</svg>`;
+}
+const V1=x=> x<1? .5 : (x<2? -.5 : 0);
+const M1=x=> x<=1? .5*x : -.5*x+1;
+
+/* ---------- reusable multiple-choice ---------- */
+function mcq(container, q, opts, correctIdx, explain, onDone){
+  const box=document.createElement("div");
+  box.innerHTML=`<p>${q}</p><div class="choices"></div><div class="fb"></div>`;
+  const ch=box.querySelector(".choices"), fb=box.querySelector(".fb");
+  let tried=false;
+  opts.forEach((o,i)=>{
+    const b=document.createElement("button"); b.innerHTML=o;
+    b.onclick=()=>{
+      if(i===correctIdx){
+        b.classList.add("right"); award(!tried);
+        fb.className="fb good"; fb.innerHTML="✅ "+explain;
+        ch.querySelectorAll("button").forEach(x=>x.disabled=true);
+        onDone&&onDone();
+      } else { tried=true; award(false); b.classList.add("wrong"); b.disabled=true; fb.className="fb bad"; fb.textContent="❌ Not quite — try again."; }
+    };
+    ch.appendChild(b);
+  });
+  container.appendChild(box);
+}
+function nextBtn(container, label="Next level ➜"){
+  const b=document.createElement("button"); b.className="primary"; b.textContent=label; b.style.marginTop="12px";
+  b.onclick=()=>go(level+1); container.appendChild(b);
+}
+function chain(card, qs){ // run questions one at a time, then Next button
+  let i=0; const run=()=>{ if(i>=qs.length) return nextBtn(card); const q=qs[i++]; mcq(card,q[0],q[1],q[2],q[3],run); }; run();
+}
+
+/* ---------- levels ---------- */
+const levels=[
+/* 0 intro */
+()=>{
+  const c=card(`Mission briefing`,`The 4-step recipe`,`
+  <p>Every shear/moment problem uses the same 4 steps. Each level of this game is one step for Problem 1:</p>
+  <ol><li><b>Reactions</b> – ΣF = 0, ΣM = 0 on the whole beam.</li>
+  <li><b>Cut</b> – slice the beam at an arbitrary <i>x</i> in each section and draw the FBD of the left piece.</li>
+  <li><b>Equilibrium</b> – ΣF<sub>y</sub>=0 → V(x), ΣM<sub>cut</sub>=0 → M(x).</li>
+  <li><b>Plot</b> – sketch V(x) and M(x).</li></ol>
+  ${beamSVG()}
+  <p class="hint">Sign convention (from the worksheet): on the <b>left</b> piece, positive V points <b>down</b> on the cut face and positive M is <b>counter-clockwise</b>. Upward loads to the left of the cut push V up.</p>`);
+  nextBtn(c,"Start ➜");
+},
+/* 1 reactions */
+()=>{
+  const c=card(`Level 1 · Step 1`,`Find the support reactions`,`${beamSVG()}
+  <p>Pin at A (x=0), roller at B (x=2L), load P at x=L. No horizontal loads, so A<sub>x</sub>=0.</p>
+  <div class="eq">ΣM<sub>A</sub> = 0:  B<sub>y</sub>·(2L) − P·(L) = 0</div>`);
+  chain(c,[
+    ["Solve for B<sub>y</sub>:",["P","P/2","2P","PL"],1,"B<sub>y</sub> = PL / 2L = <b>P/2</b>. Taking moments about A kills A<sub>y</sub> so only one unknown remains."],
+    ["Now ΣF<sub>y</sub> = 0: A<sub>y</sub> + B<sub>y</sub> − P = 0. What is A<sub>y</sub>?",["P/2","P","0","−P/2"],0,"A<sub>y</sub> = P − P/2 = <b>P/2</b>. Makes sense — the load is centered, so each support takes half."]
+  ]);
+},
+/* 2 cut 1 */
+()=>{
+  const c=card(`Level 2 · Steps 2a & 3a`,`Cut in section 1: 0 < x < L`,`
+  <p>Drag the cut. Notice the left piece only "sees" A<sub>y</sub> = P/2 — the load P is still to the right of the cut.</p>
+  <div id="fbd"></div><input type="range" id="sl" min="0.03" max="0.97" step="0.01" value="0.5">
+  <div class="eq">ΣF<sub>y</sub> = 0:  P/2 − V = 0<br>ΣM<sub>cut</sub> = 0:  M − (P/2)·x = 0</div>`);
+  const draw=()=>{ const x=+$("#sl").value; $("#fbd").innerHTML=beamSVG({cut:x,showReactions:true,leftOnly:true}); };
+  $("#sl").oninput=draw; draw();
+  chain(c,[
+    ["From ΣF<sub>y</sub>=0, V(x) = ?",["P/2","−P/2","P","Px/2"],0,"V(x) = <b>P/2</b> — constant, because no new force appears between 0 and the cut."],
+    ["From ΣM<sub>cut</sub>=0, M(x) = ?  (A<sub>y</sub> is a distance x from the cut)",["P/2","(P/2)x","Px","−(P/2)x + PL"],1,"M(x) = <b>(P/2)x</b> — moment arm grows with x, so M grows linearly. ✔ Matches the worksheet check."]
+  ]);
+},
+/* 3 cut 2 */
+()=>{
+  const c=card(`Level 3 · Steps 2b & 3b`,`Cut in section 2: L < x < 2L`,`
+  <p>Now the left piece includes A<sub>y</sub> <b>and</b> the load P. Drag the cut and watch the distance from P to the cut.</p>
+  <div id="fbd"></div><input type="range" id="sl" min="1.03" max="1.97" step="0.01" value="1.5">
+  <p id="dist" class="hint"></p>`);
+  const draw=()=>{ const x=+$("#sl").value; $("#fbd").innerHTML=beamSVG({cut:x,showReactions:true,leftOnly:true}); $("#dist").innerHTML=`Cut at x = ${x.toFixed(2)}L → distance from P to cut = ${(x-1).toFixed(2)}L`; };
+  $("#sl").oninput=draw; draw();
+  chain(c,[
+    ["What is the moment arm of P about the cut?",["x","L","x − L","2L − x"],2,"P sits at L, the cut at x, so the arm is <b>x − L</b>. This is the key hint in part (e)!"],
+    ["ΣF<sub>y</sub>=0: P/2 − P − V = 0 → V(x) = ?",["P/2","−P/2","−P","0"],1,"V(x) = <b>−P/2</b>. Crossing the downward load P made V drop by exactly P."],
+    ["ΣM<sub>cut</sub>=0: M − (P/2)x + P(x − L) = 0 → M(x) = ?",["(P/2)x","−(P/2)x + PL","(P/2)x − PL","−Px + PL"],1,"M = (P/2)x − Px + PL = <b>−(P/2)x + PL</b>. ✔ Matches the worksheet check."]
+  ]);
+},
+/* 4 table */
+()=>{
+  const c=card(`Level 4 · Part (f)`,`Fill the table`,`
+  <p>Enter values as decimals in units of <b>P</b> (for V) or <b>PL</b> (for M). Example: P/2 → <code>0.5</code>, −P/2 → <code>-0.5</code>.</p>
+  <div class="eq">V = P/2 (0&lt;x&lt;L),  −P/2 (L&lt;x&lt;2L)<br>M = (P/2)x (0&lt;x&lt;L),  −(P/2)x + PL (L&lt;x&lt;2L)</div>
+  <table><tr><th>Point</th><th>V [P]</th><th>M [PL]</th></tr>
+  ${[["x = 0",.5,0],["x = L⁻",.5,.5],["x = L⁺",-.5,.5],["x = 2L⁻",-.5,0]].map(r=>`<tr><td>${r[0]}</td><td><input data-a="${r[1]}"></td><td><input data-a="${r[2]}"></td></tr>`).join("")}
+  </table><button class="primary" id="chk" style="margin-top:10px">Check</button><div class="fb" id="fb"></div>`);
+  $("#chk").onclick=()=>{
+    let all=true;
+    c.querySelectorAll("td input").forEach(i=>{
+      const v=parseFloat(i.value.replace("−","-")); const ok=Math.abs(v-+i.dataset.a)<1e-6;
+      i.className=ok?"ok":"no"; if(!ok) all=false;
+    });
+    award(all);
+    const fb=$("#fb");
+    if(all){ fb.className="fb good"; fb.innerHTML="✅ Perfect! Notice: M(L⁻) = M(L⁺) — moment is continuous, but V jumps by P at the load."; $("#chk").disabled=true; nextBtn(c); }
+    else { fb.className="fb bad"; fb.innerHTML="❌ Red boxes are off. Tip: M(L) = (P/2)·L = 0.5 PL. At the roller (2L), M = −(P/2)(2L)+PL = 0."; }
+  };
+},
+/* 5 plot */
+()=>{
+  const c=card(`Level 5 · Step 4`,`Plot the diagrams`,`
+  <p>Drag the cut along the whole beam and watch V and M trace out.</p>
+  <input type="range" id="sl" min="0" max="2" step="0.01" value="0">
+  <div class="live"><span style="color:var(--v)">V = <b id="lv"></b></span><span style="color:var(--m)">M = <b id="lm"></b></span></div>
+  <div id="dv"></div><div id="dm"></div>`);
+  const fmt=n=>(Math.abs(n)<1e-9?"0":n.toFixed(2));
+  const draw=()=>{ const x=+$("#sl").value;
+    $("#dv").innerHTML=diagSVG(V1,"vline","V",2,x,x); $("#dm").innerHTML=diagSVG(M1,"mline","M",2,x,x);
+    $("#lv").textContent=(x>=2?"0 (end)":fmt(V1(x))+" P"); $("#lm").textContent=fmt(M1(x))+" PL"; };
+  $("#sl").oninput=draw; draw();
+  chain(c,[
+    ["Is the V diagram made of straight lines or curves?",["Flat (horizontal) lines","Sloped lines","Parabolas"],0,"V is <b>flat</b> between point loads — no distributed load means V doesn't change."],
+    ["And the M diagram?",["Flat lines","Straight sloped lines","Parabolas"],1,"M is made of <b>straight sloped lines</b>. Its slope equals V: +P/2 then −P/2."],
+    ["Where is M maximum, and what is it?",["x=0, M=0","x=L, M=PL/2","x=2L, M=PL","x=L, M=PL"],1,"M<sub>max</sub> = <b>PL/2 at x = L</b> — exactly where V crosses zero."]
+  ]);
+},
+/* 6 rules */
+()=>{
+  const c=card(`Level 6`,`Unlock the shortcut rules`,`<p>These patterns let you sketch diagrams <b>without</b> writing equations (Problem 2!).</p>`);
+  chain(c,[
+    ["At a downward point load P, the V diagram…",["Jumps down by P","Jumps up by P","Stays the same","Has a kink"],0,"<b>Jumps down by P</b> (an upward reaction makes it jump up)."],
+    ["The slope of the M diagram equals…",["the load","V","−V","zero"],1,"dM/dx = <b>V</b>. Positive V → M rising; negative V → M falling; V = 0 → M flat."],
+    ["At a pin or roller at the END of a beam (no applied moment), M is…",["Max","Zero","Equal to the reaction","Undefined"],1,"<b>M = 0</b> at free pin/roller ends."],
+    ["The change in M between two points equals…",["The area under the V diagram","The jump in V","The load","Always zero"],0,"ΔM = <b>area under V</b>. E.g. 0→L: (P/2)·L = PL/2 ✔"]
+  ]);
+},
+/* 7 boss: problem 2 */
+()=>{
+  const c=card(`Boss level · Problem 2`,`Beam of length 3L, loads P at L and 2L`,`${p2beam()}
+  <p>Use only the rules. Pick the shear value in each section.</p>
+  <div class="row" id="pick"></div>
+  <div id="bv"></div><div id="bm"></div><div class="fb" id="fb"></div>`);
+  const opts=["P","P/2","0","−P/2","−P"], vals=[1,.5,0,-.5,-1];
+  const ans=[0,2,4]; const sel=[null,null,null];
+  const names=["0<x<L","L<x<2L","2L<x<3L"];
+  const pick=$("#pick");
+  pick.innerHTML=names.map((n,i)=>`<label>${n}: <select data-i="${i}" style="font:inherit;padding:6px;border-radius:8px;background:var(--bg);color:var(--ink);border:1px solid var(--line)"><option value="">?</option>${opts.map((o,j)=>`<option value="${j}">${o}</option>`).join("")}</select></label>`).join("")+`<button class="primary" id="go">Check</button>`;
+  const Vg=x=>{const s=x<1?0:x<2?1:2; return sel[s]==null?0:vals[sel[s]];};
+  const Mg=x=>{let m=0,step=.005;for(let t=0;t<x;t+=step)m+=Vg(t)*step;return m;};
+  const draw=()=>{ $("#bv").innerHTML=diagSVG(Vg,"vline","V",3); $("#bm").innerHTML=diagSVG(Mg,"mline","M",3); };
+  pick.querySelectorAll("select").forEach(s=>s.onchange=()=>{sel[+s.dataset.i]=s.value===""?null:+s.value; draw();});
+  draw();
+  $("#go").onclick=()=>{
+    const ok=sel.every((s,i)=>s===ans[i]); award(ok); const fb=$("#fb");
+    if(ok){ fb.className="fb good"; fb.innerHTML=`✅ Boss defeated! By symmetry A<sub>y</sub> = B<sub>y</sub> = P. V: P → 0 → −P. M rises to <b>PL</b> at x=L, stays flat at PL (V=0) until 2L, then drops back to 0 at 3L.`; $("#go").disabled=true; nextBtn(c,"Finish 🏁"); }
+    else { fb.className="fb bad"; fb.innerHTML="❌ Check your M diagram — does it end at 0 at the roller? Hint: find reactions by symmetry first, then V jumps down by P at each load."; }
+  };
+},
+/* 8 done */
+()=>{
+  card(`Complete`,`🎉 You finished Beam Quest!`,`<p>Final score: <b>${xp} XP</b></p>
+  <p><b>Cheat sheet:</b></p><ul>
+  <li>Reactions first (ΣM about a support → one unknown).</li>
+  <li>Cut each section at arbitrary x; left piece; ΣF<sub>y</sub> → V, ΣM<sub>cut</sub> → M.</li>
+  <li>Point load → V jumps by the load; M gets a kink.</li>
+  <li>Slope of M = V. ΔM = area under V. M<sub>max</sub> where V crosses 0.</li>
+  <li>M = 0 at simple supports at beam ends.</li></ul>
+  <button class="primary" onclick="xp=0;streak=0;award(true);xp=0;streak=0;document.querySelector('#xp').textContent=0;document.querySelector('#streak').textContent=0;go(0)">Play again</button>`);
+}
+];
+
+function p2beam(){
+  const sc=x=>X0+x*180; let s=`<svg viewBox="0 0 ${W} 160"><defs><marker id="ah2" viewBox="0 0 10 10" refX="5" refY="9" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,0 L5,10z" fill="var(--ink)"/></marker></defs>`;
+  s+=`<rect class="beam" x="${sc(0)}" y="70" width="540" height="30"/>`;
+  s+=`<polygon points="${sc(0)},100 ${sc(0)-16},125 ${sc(0)+16},125" fill="var(--mute)"/><polygon points="${sc(3)},100 ${sc(3)-16},125 ${sc(3)+16},125" fill="var(--mute)"/>`;
+  [1,2].forEach(i=>s+=`<line x1="${sc(i)}" y1="15" x2="${sc(i)}" y2="64" stroke="var(--ink)" stroke-width="3" marker-end="url(#ah2)"/><text class="txt" x="${sc(i)+8}" y="30" font-weight="700">P</text>`);
+  ["0","L","2L","3L"].forEach((t,i)=>s+=`<text class="txt" x="${sc(i)-8}" y="145">${t}</text>`);
+  return s+`</svg>`;
+}
+
+function card(step,title,html){
+  stage.innerHTML=""; const c=document.createElement("div"); c.className="card";
+  c.innerHTML=`<div class="step">${step}</div><h2>${title}</h2>${html}`; stage.appendChild(c); return c;
+}
+function go(n){ level=n; $("#bar").style.width=(n/(levels.length-1)*100)+"%"; levels[n](); window.scrollTo(0,0); }
+go(0);
+</script>
+</body>
+</html>

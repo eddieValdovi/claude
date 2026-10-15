@@ -100,7 +100,7 @@ code{font-family:var(--f-mono);color:var(--m)}
 <text x="50" y="98" text-anchor="middle" style="fill:var(--m);font:700 12px var(--f-mono)">M=Fd</text>
 </svg>
 <div class="bubble"><b class="name">BOLT · BEAM BOT</b><span id="say"></span>
-<div class="ctrl"><button id="voiceBtn">Voice: off</button><button id="musicBtn">Music: off</button><button id="againBtn">Repeat</button></div></div>
+<div class="ctrl"><button id="voiceBtn">Voice: off</button><button id="musicBtn">Music: off</button><button id="againBtn">Repeat</button><button id="restartBtn">Restart game</button></div></div>
 </div>
 <div id="stage"></div>
 </main>
@@ -386,5 +386,6 @@ const intros=["Hi, I am Bolt, your beam bot! Turn on my voice and some music, th
 document.getElementById("voiceBtn").onclick=e=>{voiceOn=!voiceOn; e.target.textContent="Voice: "+(voiceOn?"on":"off"); e.target.classList.toggle("on",voiceOn); if(voiceOn) say(lastLine); else {try{speechSynthesis.cancel()}catch(_){}} };
 document.getElementById("musicBtn").onclick=e=>{musicOn=!musicOn; e.target.textContent="Music: "+(musicOn?"on":"off"); e.target.classList.toggle("on",musicOn); try{ musicOn?startMusic():stopMusic(); }catch(_){} };
 document.getElementById("againBtn").onclick=()=>say(lastLine);
+document.getElementById("restartBtn").onclick=()=>{xp=0;streak=0;$("#xp").textContent=0;$("#streak").textContent=0;go(0);};
 go(0);
 </script>
